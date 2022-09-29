@@ -32,8 +32,7 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.indices.SystemIndexDescriptor.Type;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.threadpool.ThreadPool;
-
-
+import org.elasticsearch.persistent.PersistentTasksExecutor;
 
 import static org.elasticsearch.index.mapper.MapperService.SINGLE_MAPPING_NAME;
 import static org.elasticsearch.xcontent.XContentFactory.jsonBuilder;
@@ -46,7 +45,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 
 
-public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, SearchPlugin, SystemIndexPlugin {
+public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, PersistentTaskPlugin, SearchPlugin, SystemIndexPlugin {
 
     private static final Logger logger = LogManager.getLogger(RelevanceSearchPlugin.class);
 
@@ -114,17 +113,17 @@ public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, Searc
         return "Relevance Search plugin";
     }
 
-//    @Override
-//    public List<PersistentTasksExecutor<?>> getPersistentTasksExecutor(
-//        ClusterService clusterService,
-//        ThreadPool threadPool,
-//        Client client,
-//        SettingsModule settingsModule,
-//        IndexNameExpressionResolver expressionResolver
-//    ) {
-//
-//        return List.of(geoIpDownloaderTaskExecutor);
-//    }
+    @Override
+    public List<PersistentTasksExecutor<?>> getPersistentTasksExecutor(
+        ClusterService clusterService,
+        ThreadPool threadPool,
+        Client client,
+        SettingsModule settingsModule,
+        IndexNameExpressionResolver expressionResolver
+    ) {
+
+        return List.of(new RelevanceSearchTaskExecutor());
+    }
 
     private static XContentBuilder mappings() {
         try {
