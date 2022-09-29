@@ -53,7 +53,6 @@ import java.util.function.Supplier;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-
 public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, PersistentTaskPlugin, SearchPlugin, SystemIndexPlugin {
 
     private static final Logger logger = LogManager.getLogger(RelevanceSearchPlugin.class);
@@ -92,24 +91,7 @@ public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, Persi
 
     @Override
     public Collection<SystemIndexDescriptor> getSystemIndexDescriptors(Settings settings) {
-        SystemIndexDescriptor relevanceSettingsIndex = SystemIndexDescriptor.builder()
-            .setIndexPattern(".ent-search*")
-            .setDescription("Relevance Settings Index")
-            .setMappings(mappings())
-            .setSettings(
-                Settings.builder()
-                    .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
-                    .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
-                    .put(IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS, "0-1")
-                    .build()
-            )
-            .setOrigin("relevance-search")
-            .setVersionMetaKey("version")
-            .setPrimaryIndex(".ent-search")
-            .setNetNew()
-            .setType(Type.INTERNAL_MANAGED)
-            .build();
-        return Collections.singleton(relevanceSettingsIndex);
+        return Collections.singleton(RelevanceSettingsIndexManager.getSystemIndexDescriptor());
     }
 
     @Override
@@ -152,32 +134,5 @@ public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, Persi
     ) {
         relevanceSearchTaskExecutor = new RelevanceSearchTaskExecutor(client, clusterService, threadPool);
         return List.of(relevanceSearchTaskExecutor);
-    }
-
-
-    private static XContentBuilder mappings() {
-        try {
-            return jsonBuilder().startObject()
-                .startObject(SINGLE_MAPPING_NAME)
-                .startObject("_meta")
-                .field("version", Version.CURRENT)
-                .endObject()
-                .field("dynamic", "strict")
-                .startObject("properties")
-                .startObject("name")
-                .field("type", "keyword")
-                .endObject()
-                .startObject("chunk")
-                .field("type", "integer")
-                .endObject()
-                .startObject("data")
-                .field("type", "binary")
-                .endObject()
-                .endObject()
-                .endObject()
-                .endObject();
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to build mappings", e);
-        }
     }
 }

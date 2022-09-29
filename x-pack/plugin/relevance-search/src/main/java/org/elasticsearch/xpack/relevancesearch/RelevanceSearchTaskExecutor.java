@@ -8,9 +8,15 @@
 package org.elasticsearch.xpack.relevancesearch;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.alias.Alias;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -18,6 +24,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.MetadataCreateIndexService;
 import org.elasticsearch.gateway.GatewayService;
+import org.elasticsearch.indices.SystemIndexDescriptor;
 import org.elasticsearch.persistent.AllocatedPersistentTask;
 import org.elasticsearch.persistent.PersistentTaskState;
 import org.elasticsearch.persistent.PersistentTasksCustomMetadata;
@@ -29,6 +36,8 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.transport.RemoteTransportException;
 
 import java.util.Map;
+
+import static org.elasticsearch.xpack.core.ClientHelper.executeAsyncWithOrigin;
 
 
 public class RelevanceSearchTaskExecutor extends PersistentTasksExecutor<RelevanceSearchTaskParams> implements ClusterStateListener {
@@ -91,6 +100,35 @@ public class RelevanceSearchTaskExecutor extends PersistentTasksExecutor<Relevan
 
     @Override
     protected void nodeOperation(AllocatedPersistentTask task, RelevanceSearchTaskParams params, PersistentTaskState state) {
-        logger.info("HAHAH");
+        logger.info("Creating relevance settings system index");
+        createSystemIndex();
+    }
+
+    private void createSystemIndex() {
+        SystemIndexDescriptor descriptor = RelevanceSettingsIndexManager.getSystemIndexDescriptor();
+
+        CreateIndexRequest request = new CreateIndexRequest(descriptor.getPrimaryIndex())
+            .origin(descriptor.getOrigin())
+            .mapping(descriptor.getMappings())
+            .settings(descriptor.getSettings())
+            .waitForActiveShards(ActiveShardCount.ALL);
+
+
+        executeAsyncWithOrigin(
+            client.threadPool().getThreadContext(),
+            descriptor.getOrigin(),
+            request,
+            new ActionListener<CreateIndexResponse>() {
+                @Override
+                public void onResponse(CreateIndexResponse createIndexResponse) {
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    logger.info("Failed to create system index " + e.toString());
+                }
+            },
+            client.admin().indices()::create
+        );
     }
 }
