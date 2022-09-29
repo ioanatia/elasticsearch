@@ -8,27 +8,48 @@ package org.elasticsearch.xpack.relevancesearch;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.common.settings.SettingsModule;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SearchPlugin;
+import org.elasticsearch.plugins.SystemIndexPlugin;
+import org.elasticsearch.plugins.PersistentTaskPlugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.Version;
+import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.indices.SystemIndexDescriptor;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.indices.SystemIndexDescriptor.Type;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.threadpool.ThreadPool;
+
+
+
+import static org.elasticsearch.index.mapper.MapperService.SINGLE_MAPPING_NAME;
+import static org.elasticsearch.xcontent.XContentFactory.jsonBuilder;
 
 import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 
-public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, SearchPlugin {
+
+public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, SearchPlugin, SystemIndexPlugin {
 
     private static final Logger logger = LogManager.getLogger(RelevanceSearchPlugin.class);
+
 
     public RelevanceSearchPlugin() {
         logger.info("Relevance Search Plugin loaded");
@@ -59,5 +80,75 @@ public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, Searc
     public List<QuerySpec<?>> getQueries() {
         // Query Specs to be registered here to implement relevance_search
         return Collections.emptyList();
+    }
+
+    @Override
+    public Collection<SystemIndexDescriptor> getSystemIndexDescriptors(Settings settings) {
+        SystemIndexDescriptor relevanceSettingsIndex = SystemIndexDescriptor.builder()
+            .setIndexPattern(".ent-search*")
+            .setDescription("Relevance Settings Index")
+            .setMappings(mappings())
+            .setSettings(
+                Settings.builder()
+                    .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
+                    .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
+                    .put(IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS, "0-1")
+                    .build()
+            )
+            .setOrigin("relevance-search")
+            .setVersionMetaKey("version")
+            .setPrimaryIndex(".ent-search")
+            .setNetNew()
+            .setType(Type.INTERNAL_MANAGED)
+            .build();
+        return Collections.singleton(relevanceSettingsIndex);
+    }
+
+    @Override
+    public String getFeatureName() {
+        return "relevance-search";
+    }
+
+    @Override
+    public String getFeatureDescription() {
+        return "Relevance Search plugin";
+    }
+
+//    @Override
+//    public List<PersistentTasksExecutor<?>> getPersistentTasksExecutor(
+//        ClusterService clusterService,
+//        ThreadPool threadPool,
+//        Client client,
+//        SettingsModule settingsModule,
+//        IndexNameExpressionResolver expressionResolver
+//    ) {
+//
+//        return List.of(geoIpDownloaderTaskExecutor);
+//    }
+
+    private static XContentBuilder mappings() {
+        try {
+            return jsonBuilder().startObject()
+                .startObject(SINGLE_MAPPING_NAME)
+                .startObject("_meta")
+                .field("version", Version.CURRENT)
+                .endObject()
+                .field("dynamic", "strict")
+                .startObject("properties")
+                .startObject("name")
+                .field("type", "keyword")
+                .endObject()
+                .startObject("chunk")
+                .field("type", "integer")
+                .endObject()
+                .startObject("data")
+                .field("type", "binary")
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to build mappings", e);
+        }
     }
 }
