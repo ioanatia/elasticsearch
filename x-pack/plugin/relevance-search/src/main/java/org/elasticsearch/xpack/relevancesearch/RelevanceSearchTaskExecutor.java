@@ -6,27 +6,91 @@
  */
 
 package org.elasticsearch.xpack.relevancesearch;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ResourceAlreadyExistsException;
+import org.elasticsearch.Version;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.ClusterStateListener;
+import org.elasticsearch.cluster.metadata.MetadataCreateIndexService;
+import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.persistent.AllocatedPersistentTask;
 import org.elasticsearch.persistent.PersistentTaskState;
+import org.elasticsearch.persistent.PersistentTasksCustomMetadata;
 import org.elasticsearch.persistent.PersistentTasksExecutor;
+import org.elasticsearch.persistent.PersistentTasksService;
+import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.transport.RemoteTransportException;
+
+import java.util.Map;
 
 
 public class RelevanceSearchTaskExecutor extends PersistentTasksExecutor<RelevanceSearchTaskParams> implements ClusterStateListener {
+    private static final Logger logger = LogManager.getLogger(RelevanceSearchTaskExecutor.class);
+    private final ClusterService clusterService;
+    private final PersistentTasksService persistentTasksService;
 
-    protected RelevanceSearchTaskExecutor() {
-        super( "RELEVANCE_SEARCH", ThreadPool.Names.GENERIC);
+    private final Client client;
+
+
+    protected RelevanceSearchTaskExecutor(Client client, ClusterService clusterService, ThreadPool threadPool) {
+        super( "relevance-search", ThreadPool.Names.GENERIC);
+        clusterService.addListener(this);
+        this.clusterService = clusterService;
+        this.client = client;
+        this.persistentTasksService = new PersistentTasksService(clusterService, threadPool, client);
+    }
+
+    @Override
+    protected RelevanceSearchTask createTask(
+        long id,
+        String type,
+        String action,
+        TaskId parentTaskId,
+        PersistentTasksCustomMetadata.PersistentTask<RelevanceSearchTaskParams> taskInProgress,
+        Map<String, String> headers
+    ) {
+        return new RelevanceSearchTask(
+            id, type, action, "description", parentTaskId, headers
+        );
     }
 
     @Override
     public void clusterChanged(ClusterChangedEvent event) {
+        if (event.state().blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
+            // wait for state recovered
+            return;
+        }
 
+        DiscoveryNode masterNode = event.state().nodes().getMasterNode();
+        if (masterNode == null || masterNode.getVersion().before(Version.V_7_14_0)) {
+            // wait for master to be upgraded so it understands geoip task
+            return;
+        }
+
+        clusterService.removeListener(this);
+
+        persistentTasksService.sendStartRequest(
+            "relevance-search",
+            "relevance-search",
+            new RelevanceSearchTaskParams(),
+            ActionListener.wrap(r -> logger.debug("Started relevance search task"), e -> {
+                Throwable t = e instanceof RemoteTransportException ? e.getCause() : e;
+                if (t instanceof ResourceAlreadyExistsException == false) {
+                    logger.error("failed relevance search task", e);
+                }
+            })
+        );
     }
 
     @Override
     protected void nodeOperation(AllocatedPersistentTask task, RelevanceSearchTaskParams params, PersistentTaskState state) {
-
+        logger.info("HAHAH");
     }
 }

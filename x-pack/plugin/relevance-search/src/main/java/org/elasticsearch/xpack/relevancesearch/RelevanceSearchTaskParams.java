@@ -25,7 +25,7 @@ public class RelevanceSearchTaskParams implements PersistentTaskParams {
 
     @Override
     public String getWriteableName() {
-        return "RELEVANCE_SEARCH";
+        return "relevance-search";
     }
 
     @Override
