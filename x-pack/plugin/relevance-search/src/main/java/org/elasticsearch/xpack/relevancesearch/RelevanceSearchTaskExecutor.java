@@ -112,8 +112,6 @@ public class RelevanceSearchTaskExecutor extends PersistentTasksExecutor<Relevan
             .mapping(descriptor.getMappings())
             .settings(descriptor.getSettings())
             .waitForActiveShards(ActiveShardCount.ALL);
-
-
         executeAsyncWithOrigin(
             client.threadPool().getThreadContext(),
             descriptor.getOrigin(),

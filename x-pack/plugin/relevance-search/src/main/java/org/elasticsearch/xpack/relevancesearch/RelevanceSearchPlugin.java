@@ -53,7 +53,7 @@ import java.util.function.Supplier;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, PersistentTaskPlugin, SearchPlugin, SystemIndexPlugin {
+public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, PersistentTaskPlugin, SearchPlugin {
 
     private static final Logger logger = LogManager.getLogger(RelevanceSearchPlugin.class);
     private RelevanceSearchTaskExecutor relevanceSearchTaskExecutor;
@@ -87,21 +87,6 @@ public class RelevanceSearchPlugin extends Plugin implements ActionPlugin, Persi
     public List<QuerySpec<?>> getQueries() {
         // Query Specs to be registered here to implement relevance_search
         return Collections.emptyList();
-    }
-
-    @Override
-    public Collection<SystemIndexDescriptor> getSystemIndexDescriptors(Settings settings) {
-        return Collections.singleton(RelevanceSettingsIndexManager.getSystemIndexDescriptor());
-    }
-
-    @Override
-    public String getFeatureName() {
-        return "relevance-search";
-    }
-
-    @Override
-    public String getFeatureDescription() {
-        return "Relevance Search plugin";
     }
 
     @Override
