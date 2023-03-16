@@ -16,16 +16,12 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.OriginSettingClient;
-import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.xcontent.XContent;
-import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xpack.core.security.authz.RoleDescriptor;
 import org.elasticsearch.xpack.core.security.authz.store.RoleRetrievalResult;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -41,7 +37,8 @@ public class ApplicationRoleProvider implements BiConsumer<Set<String>, ActionLi
     private Client client;
 
     public ApplicationRoleProvider(Client client) {
-        this.client = new OriginSettingClient(client, ENT_SEARCH_ORIGIN);;
+        this.client = new OriginSettingClient(client, ENT_SEARCH_ORIGIN);
+        ;
     }
 
     @Override
@@ -56,6 +53,9 @@ public class ApplicationRoleProvider implements BiConsumer<Set<String>, ActionLi
                 }
 
                 String query = ApplicationRoleConfiguration.getRoleDescriptorQuery(roleConfig, role, client);
+                if (query == null) {
+                    continue;
+                }
 
                 roleDescriptors.add(
                     new RoleDescriptor(
@@ -111,8 +111,7 @@ public class ApplicationRoleProvider implements BiConsumer<Set<String>, ActionLi
         public static String getRoleDescriptorQuery(ApplicationRoleConfiguration config, String role, Client client) {
             String lookupValue = role.split(":")[2];
             TermQueryBuilder termQueryBuilder = new TermQueryBuilder(config.lookupField, lookupValue);
-            SearchSourceBuilder source = new SearchSourceBuilder()
-                .query(termQueryBuilder);
+            SearchSourceBuilder source = new SearchSourceBuilder().query(termQueryBuilder);
 
             SearchRequest searchRequest = new SearchRequest(config.rolesIndex).source(source);
             SearchResponse searchResponse;
@@ -125,10 +124,6 @@ public class ApplicationRoleProvider implements BiConsumer<Set<String>, ActionLi
             }
 
             return searchResponse.getHits().getAt(0).getSourceAsMap().get("query").toString();
-            //HashMap<String, Object> roleDescriptor = (HashMap<String, Object>) searchResponse.getHits().getAt(0).getSourceAsMap().get("role_descriptor");
-            // return Json.dump(roleDescriptor.get("query"));
-            // HashMap<String, Object> roleDescriptor = (HashMap<String, Object>) searchResponse.getHits().getAt(0).getSourceAsMap().get("role_descriptor");
-            // return roleDescriptor.get("query").toString();
         }
     }
 }
