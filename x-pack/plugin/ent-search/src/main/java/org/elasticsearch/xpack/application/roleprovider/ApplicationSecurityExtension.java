@@ -7,13 +7,23 @@
 
 package org.elasticsearch.xpack.application.roleprovider;
 
-import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.xpack.core.security.SecurityExtension;
-import org.elasticsearch.xpack.core.security.authz.AuthorizationEngine;
+import org.elasticsearch.xpack.core.security.authz.store.RoleRetrievalResult;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.function.BiConsumer;
 
 public class ApplicationSecurityExtension implements SecurityExtension {
+    // @Override
+    // public AuthorizationEngine getAuthorizationEngine(Settings settings) {
+    // return new ApplicationAuthorizationEngine();
+    // }
+
     @Override
-    public AuthorizationEngine getAuthorizationEngine(Settings settings) {
-        return new ApplicationAuthorizationEngine();
+    public List<BiConsumer<Set<String>, ActionListener<RoleRetrievalResult>>> getRolesProviders(SecurityComponents components) {
+        return Arrays.asList(new ApplicationRoleProvider(components.client()));
     }
 }
