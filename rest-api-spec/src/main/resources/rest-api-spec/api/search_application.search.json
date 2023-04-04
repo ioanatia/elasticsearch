@@ -2,7 +2,7 @@
   "search_application.search": {
     "documentation": {
       "url": "http://todo.com/tbd",
-      "description": "Perform a search on a search application"
+      "description": "Perform a search against a search application"
     },
     "stability": "experimental",
     "visibility": "feature_flag",
