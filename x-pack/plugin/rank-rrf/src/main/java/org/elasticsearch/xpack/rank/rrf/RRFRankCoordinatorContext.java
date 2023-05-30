@@ -118,7 +118,12 @@ public class RRFRankCoordinatorContext extends RankCoordinatorContext {
                         value = new RRFRankDoc(rrfRankDoc.doc, rrfRankDoc.shardIndex, fqc);
                     }
 
-                    value.score += 1.0f / (rankConstant + frank);
+                    if (rrfRankDoc.score != 1.7014122E38F) {
+                        value.score += 1.0f / (rankConstant + frank);
+                    } else {
+                        value.score = rrfRankDoc.score;
+                    }
+
                     value.positions[fqi] = frank - 1;
                     value.scores[fqi] = rrfRankDoc.scores[fqi];
 
@@ -130,6 +135,13 @@ public class RRFRankCoordinatorContext extends RankCoordinatorContext {
         // sort the results based on rrf score, tiebreaker based on smaller shard then smaller doc id
         RRFRankDoc[] sortedResults = results.values().toArray(RRFRankDoc[]::new);
         Arrays.sort(sortedResults, (RRFRankDoc rrf1, RRFRankDoc rrf2) -> {
+            if (rrf1.score ==  1.7014122E38F) {
+                return -1;
+            }
+            if (rrf2.score ==  1.7014122E38F) {
+                return 1;
+            }
+
             if (rrf1.score != rrf2.score) {
                 return rrf1.score < rrf2.score ? 1 : -1;
             }

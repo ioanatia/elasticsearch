@@ -51,7 +51,11 @@ public class RRFRankShardContext extends RankShardContext {
 
                     // calculate the current rrf score for this document
                     // later used to sort and covert to a rank
-                    value.score += 1.0f / (rankConstant + frank);
+                    if (scoreDoc.score != 1.7014122E38F) {
+                        value.score += 1.0f / (rankConstant + frank);
+                    } else {
+                        value.score = scoreDoc.score;
+                    }
 
                     // record the position for each query
                     // for explain and debugging
@@ -71,6 +75,13 @@ public class RRFRankShardContext extends RankShardContext {
         // sort the results based on rrf score, tiebreaker based on smaller doc id
         RRFRankDoc[] sortedResults = docsToRankResults.values().toArray(RRFRankDoc[]::new);
         Arrays.sort(sortedResults, (RRFRankDoc rrf1, RRFRankDoc rrf2) -> {
+            if (rrf1.score ==  1.7014122E38F) {
+                return -1;
+            }
+            if (rrf2.score ==  1.7014122E38F) {
+                return 1;
+            }
+
             if (rrf1.score != rrf2.score) {
                 return rrf1.score < rrf2.score ? 1 : -1;
             }
@@ -81,7 +92,9 @@ public class RRFRankShardContext extends RankShardContext {
         for (int rank = 0; rank < topResults.length; ++rank) {
             topResults[rank] = sortedResults[rank];
             topResults[rank].rank = rank + 1;
-            topResults[rank].score = Float.NaN;
+            if (topResults[rank].score != 1.7014122E38F) {
+                topResults[rank].score = Float.NaN;
+            }
         }
         return new RRFRankShardResult(rankResults.size(), topResults);
     }
