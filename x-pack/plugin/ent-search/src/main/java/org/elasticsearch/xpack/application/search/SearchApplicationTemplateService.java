@@ -10,10 +10,15 @@ package org.elasticsearch.xpack.application.search;
 import com.fasterxml.jackson.core.JsonLocation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.fasterxml.jackson.databind.SerializationFeature;
+
 import org.elasticsearch.common.ValidationException;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.script.TemplateScript;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
@@ -23,6 +28,7 @@ import org.elasticsearch.xcontent.XContentParseException;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.XContentType;
+import org.elasticsearch.painless.spi.PainlessTestScript;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -38,11 +44,43 @@ public class SearchApplicationTemplateService {
         this.xContentRegistry = xContentRegistry;
     }
 
+    public String renderHelperOutput(SearchApplicationHelper helper,  Map<String, Object> templateParams) throws JsonProcessingException {
+         final Script script = new Script(ScriptType.INLINE, "painless", helper.script(), templateParams);
+         PainlessTestScript compiledTemplate = scriptService.compile(script, PainlessTestScript.CONTEXT).newInstance(templateParams);
+
+         Object result = compiledTemplate.execute();
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+
+        return mapper.writeValueAsString(result);
+    }
+
+    public Map<String, Object> renderHelperOutputs(SearchApplication searchApplication, Map<String, Object> templateParams) {
+        Map<String, Object> helperOutputs = new HashMap<>();
+        for(Map.Entry<String, SearchApplicationHelper> entry : searchApplication.helpers().entrySet()) {
+            String helperName = entry.getKey();
+            Object output = null;
+            try {
+                output = renderHelperOutput(entry.getValue(), templateParams);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+            helperOutputs.put(helperName, output);
+        }
+        return helperOutputs;
+    }
+
+
     public SearchSourceBuilder renderQuery(SearchApplication searchApplication, Map<String, Object> templateParams) throws IOException,
         ValidationException, XContentParseException {
         final SearchApplicationTemplate template = searchApplication.searchApplicationTemplateOrDefault();
         template.validateTemplateParams(templateParams);
+
         final Map<String, Object> renderedTemplateParams = renderTemplateParams(template, templateParams);
+        final Map<String, Object> helperOutputs = renderHelperOutputs(searchApplication, renderedTemplateParams);
+        renderedTemplateParams.putAll(helperOutputs);
+
         final Script script = template.script();
         TemplateScript compiledTemplate = scriptService.compile(script, TemplateScript.CONTEXT).newInstance(renderedTemplateParams);
         String requestSource;

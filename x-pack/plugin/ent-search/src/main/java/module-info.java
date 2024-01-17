@@ -20,6 +20,7 @@ module org.elasticsearch.application {
     requires org.elasticsearch.xcontent;
     requires org.elasticsearch.xcore;
     requires org.elasticsearch.searchbusinessrules;
+    requires org.elasticsearch.painless.spi;
     requires org.apache.lucene.suggest;
 
     exports org.elasticsearch.xpack.application;
