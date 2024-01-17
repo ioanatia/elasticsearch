@@ -19,9 +19,11 @@ import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xpack.application.search.SearchApplication;
+import org.elasticsearch.xpack.application.search.SearchApplicationHelper;
 import org.elasticsearch.xpack.application.search.SearchApplicationTemplate;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
@@ -125,9 +127,10 @@ public class GetSearchApplicationAction extends ActionType<GetSearchApplicationA
             String[] indices,
             String analyticsCollectionName,
             long updatedAtMillis,
-            SearchApplicationTemplate template
+            SearchApplicationTemplate template,
+            Map<String, SearchApplicationHelper> helpers
         ) {
-            this.searchApp = new SearchApplication(name, indices, analyticsCollectionName, updatedAtMillis, template);
+            this.searchApp = new SearchApplication(name, indices, analyticsCollectionName, updatedAtMillis, template, helpers);
         }
 
         private static final ConstructingObjectParser<Response, String> PARSER = new ConstructingObjectParser<>(

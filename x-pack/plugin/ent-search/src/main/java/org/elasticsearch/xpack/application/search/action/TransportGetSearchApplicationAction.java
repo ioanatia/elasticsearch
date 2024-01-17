@@ -66,7 +66,8 @@ public class TransportGetSearchApplicationAction extends HandledTransportAction<
                 searchApplication.indices(),
                 searchApplication.analyticsCollectionName(),
                 searchApplication.updatedAtMillis(),
-                searchApplication.searchApplicationTemplateOrDefault()
+                searchApplication.searchApplicationTemplateOrDefault(),
+                searchApplication.helpers()
             );
         }));
     }

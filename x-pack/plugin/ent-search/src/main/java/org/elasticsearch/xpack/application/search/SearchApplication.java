@@ -36,7 +36,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg;
 import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstructorArg;
 
 /**
@@ -64,6 +66,8 @@ public class SearchApplication implements Writeable, ToXContentObject {
     private final String analyticsCollectionName;
     private final SearchApplicationTemplate searchApplicationTemplate;
 
+    private final Map<String, SearchApplicationHelper> helpers;
+
     /**
      * Public constructor.
      *
@@ -78,7 +82,8 @@ public class SearchApplication implements Writeable, ToXContentObject {
         String[] indices,
         @Nullable String analyticsCollectionName,
         long updatedAtMillis,
-        @Nullable SearchApplicationTemplate searchApplicationTemplate
+        @Nullable SearchApplicationTemplate searchApplicationTemplate,
+        Map<String, SearchApplicationHelper> helpers
     ) {
         if (Strings.isNullOrEmpty(name)) {
             throw new IllegalArgumentException("Search Application name cannot be null or blank");
@@ -92,6 +97,7 @@ public class SearchApplication implements Writeable, ToXContentObject {
         this.analyticsCollectionName = analyticsCollectionName;
         this.updatedAtMillis = updatedAtMillis;
         this.searchApplicationTemplate = searchApplicationTemplate;
+        this.helpers = helpers;
     }
 
     public SearchApplication(StreamInput in) throws IOException {
@@ -109,6 +115,7 @@ public class SearchApplication implements Writeable, ToXContentObject {
         this.analyticsCollectionName = in.readOptionalString();
         this.updatedAtMillis = in.readLong();
         this.searchApplicationTemplate = in.readOptionalWriteable(SearchApplicationTemplate::new);
+        this.helpers = in.readMap(SearchApplicationHelper::new);
     }
 
     @Override
@@ -120,6 +127,7 @@ public class SearchApplication implements Writeable, ToXContentObject {
         out.writeOptionalString(analyticsCollectionName);
         out.writeLong(updatedAtMillis);
         out.writeOptionalWriteable(searchApplicationTemplate);
+        out.writeMap(helpers, StreamOutput::writeWriteable);
     }
 
     private static final ConstructingObjectParser<SearchApplication, String> PARSER = new ConstructingObjectParser<>(
@@ -142,7 +150,10 @@ public class SearchApplication implements Writeable, ToXContentObject {
             long updatedAtMillis = (maybeUpdatedAtMillis != null ? maybeUpdatedAtMillis : System.currentTimeMillis());
             final SearchApplicationTemplate template = (SearchApplicationTemplate) params[4];
 
-            return new SearchApplication(resourceName, indices, analyticsCollectionName, updatedAtMillis, template);
+            @SuppressWarnings("unchecked")
+            List<Tuple<String, SearchApplicationHelper>> helpersAsList = (List<Tuple<String, SearchApplicationHelper>>) params[5];
+            final Map<String, SearchApplicationHelper> helpers = helpersAsList.stream().collect(Collectors.toMap(Tuple::v1, Tuple::v2));
+            return new SearchApplication(resourceName, indices, analyticsCollectionName, updatedAtMillis, template, helpers);
         }
     );
 
@@ -153,6 +164,7 @@ public class SearchApplication implements Writeable, ToXContentObject {
     public static final ParseField TEMPLATE_SCRIPT_FIELD = new ParseField("script");
     public static final ParseField UPDATED_AT_MILLIS_FIELD = new ParseField("updated_at_millis");
     public static final ParseField BINARY_CONTENT_FIELD = new ParseField("binary_content");
+    public static final ParseField HELPERS_FIELD = new ParseField("helpers");
 
     static {
         PARSER.declareStringOrNull(optionalConstructorArg(), NAME_FIELD);
@@ -160,6 +172,7 @@ public class SearchApplication implements Writeable, ToXContentObject {
         PARSER.declareStringOrNull(optionalConstructorArg(), ANALYTICS_COLLECTION_NAME_FIELD);
         PARSER.declareLong(optionalConstructorArg(), UPDATED_AT_MILLIS_FIELD);
         PARSER.declareObjectOrNull(optionalConstructorArg(), (p, c) -> SearchApplicationTemplate.parse(p), null, TEMPLATE_FIELD);
+        PARSER.declareNamedObjects(constructorArg(), (p, c, name) -> Tuple.tuple(name, SearchApplicationHelper.parse(p)),  HELPERS_FIELD);
     }
 
     /**
@@ -209,6 +222,11 @@ public class SearchApplication implements Writeable, ToXContentObject {
         }
         builder.field(UPDATED_AT_MILLIS_FIELD.getPreferredName(), updatedAtMillis);
         builder.field(TEMPLATE_FIELD.getPreferredName(), searchApplicationTemplate);
+        builder.startObject(HELPERS_FIELD.getPreferredName());
+        for(Map.Entry<String, SearchApplicationHelper> entry : helpers.entrySet()) {
+            builder.field(entry.getKey(), entry.getValue());
+        }
+        builder.endObject();
         builder.endObject();
         return builder;
     }
@@ -230,6 +248,8 @@ public class SearchApplication implements Writeable, ToXContentObject {
     public String[] indices() {
         return indices;
     }
+
+    public Map<String, SearchApplicationHelper> helpers() { return helpers; }
 
     /**
      * Returns the name of the analytics collection linked with this {@link SearchApplication}.
