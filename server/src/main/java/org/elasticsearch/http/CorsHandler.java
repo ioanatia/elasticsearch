@@ -83,7 +83,7 @@ public class CorsHandler {
 
     private static final Pattern SCHEME_PATTERN = Pattern.compile("^https?://");
     private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O", Locale.ENGLISH);
-    private final Config config;
+    private Config config;
 
     public CorsHandler(Config config) {
         this.config = config;
@@ -110,6 +110,10 @@ public class CorsHandler {
             setAllowCredentials(httpResponse);
             setExposeHeaders(httpResponse);
         }
+    }
+
+    public void resetSettings(Settings settings) {
+        this.config = buildConfig(settings);
     }
 
     private HttpResponse handlePreflight(final HttpRequest request) {

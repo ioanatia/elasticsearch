@@ -26,36 +26,50 @@ import static org.elasticsearch.common.settings.Setting.stringListSetting;
 
 public final class HttpTransportSettings {
 
-    public static final Setting<Boolean> SETTING_CORS_ENABLED = Setting.boolSetting("http.cors.enabled", false, Property.NodeScope);
+    public static final Setting<Boolean> SETTING_CORS_ENABLED = Setting.boolSetting(
+        "http.cors.enabled",
+        false,
+        Property.NodeScope,
+        Property.Dynamic
+    );
     public static final Setting<String> SETTING_CORS_ALLOW_ORIGIN = new Setting<>(
         "http.cors.allow-origin",
         "",
         (value) -> value,
-        Property.NodeScope
+        Property.NodeScope,
+        Property.Dynamic
     );
-    public static final Setting<Integer> SETTING_CORS_MAX_AGE = intSetting("http.cors.max-age", 1728000, Property.NodeScope);
+    public static final Setting<Integer> SETTING_CORS_MAX_AGE = intSetting(
+        "http.cors.max-age",
+        1728000,
+        Property.NodeScope,
+        Property.Dynamic);
     public static final Setting<String> SETTING_CORS_ALLOW_METHODS = new Setting<>(
         "http.cors.allow-methods",
         "OPTIONS,HEAD,GET,POST,PUT,DELETE",
         (value) -> value,
-        Property.NodeScope
+        Property.NodeScope,
+        Property.Dynamic
     );
     public static final Setting<String> SETTING_CORS_ALLOW_HEADERS = new Setting<>(
         "http.cors.allow-headers",
         "X-Requested-With,Content-Type,Content-Length,Authorization,Accept,User-Agent,X-Elastic-Client-Meta",
         (value) -> value,
-        Property.NodeScope
+        Property.NodeScope,
+        Property.Dynamic
     );
     public static final Setting<String> SETTING_CORS_EXPOSE_HEADERS = new Setting<>(
         "http.cors.expose-headers",
         "X-elastic-product",
         (value) -> value,
-        Property.NodeScope
+        Property.NodeScope,
+        Property.Dynamic
     );
     public static final Setting<Boolean> SETTING_CORS_ALLOW_CREDENTIALS = Setting.boolSetting(
         "http.cors.allow-credentials",
         false,
-        Property.NodeScope
+        Property.NodeScope,
+        Property.Dynamic
     );
     public static final Setting<Integer> SETTING_PIPELINING_MAX_EVENTS = intSetting(
         "http.pipelining.max_events",

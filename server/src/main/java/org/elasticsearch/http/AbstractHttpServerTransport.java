@@ -64,6 +64,13 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 
 import static org.elasticsearch.core.Strings.format;
+import static org.elasticsearch.http.HttpTransportSettings.SETTING_CORS_ALLOW_CREDENTIALS;
+import static org.elasticsearch.http.HttpTransportSettings.SETTING_CORS_ALLOW_HEADERS;
+import static org.elasticsearch.http.HttpTransportSettings.SETTING_CORS_ALLOW_ORIGIN;
+import static org.elasticsearch.http.HttpTransportSettings.SETTING_CORS_ENABLED;
+import static org.elasticsearch.http.HttpTransportSettings.SETTING_CORS_EXPOSE_HEADERS;
+import static org.elasticsearch.http.HttpTransportSettings.SETTING_CORS_MAX_AGE;
+import static org.elasticsearch.http.HttpTransportSettings.SETTING_CORS_ALLOW_METHODS;
 import static org.elasticsearch.http.HttpTransportSettings.SETTING_HTTP_BIND_HOST;
 import static org.elasticsearch.http.HttpTransportSettings.SETTING_HTTP_MAX_CONTENT_LENGTH;
 import static org.elasticsearch.http.HttpTransportSettings.SETTING_HTTP_PORT;
@@ -142,6 +149,19 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
         clusterSettings.addSettingsUpdateConsumer(
             TransportSettings.SLOW_OPERATION_THRESHOLD_SETTING,
             slowLogThreshold -> this.slowLogThresholdMs = slowLogThreshold.getMillis()
+        );
+
+        clusterSettings.addSettingsUpdateConsumer(
+            corsHandler::resetSettings,
+            List.of(
+                SETTING_CORS_ALLOW_CREDENTIALS,
+                SETTING_CORS_ALLOW_HEADERS,
+                SETTING_CORS_ALLOW_METHODS,
+                SETTING_CORS_ALLOW_ORIGIN,
+                SETTING_CORS_ENABLED,
+                SETTING_CORS_MAX_AGE,
+                SETTING_CORS_EXPOSE_HEADERS
+            )
         );
         slowLogThresholdMs = TransportSettings.SLOW_OPERATION_THRESHOLD_SETTING.get(settings).getMillis();
         httpClientStatsTracker = new HttpClientStatsTracker(settings, clusterSettings, threadPool);
