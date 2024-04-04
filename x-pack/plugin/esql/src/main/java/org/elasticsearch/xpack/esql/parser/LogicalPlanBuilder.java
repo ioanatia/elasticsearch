@@ -229,6 +229,55 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
     }
 
     @Override
+    public LogicalPlan visitRetrieveCommand(EsqlBaseParser.RetrieveCommandContext ctx) {
+        Source source = source(ctx);
+        TableIdentifier table = new TableIdentifier(source, null, visitRetrieveIdentifiers(ctx.retrieveIdentifier()));
+        Map<String, Attribute> metadataMap = new LinkedHashMap<>();
+        if (ctx.metadata() != null) {
+            var deprecatedContext = ctx.metadata().deprecated_metadata();
+            MetadataOptionContext metadataOptionContext = null;
+            if (deprecatedContext != null) {
+                var s = source(deprecatedContext).source();
+                addWarning(
+                    "Line {}:{}: Square brackets '[]' need to be removed in FROM METADATA declaration",
+                    s.getLineNumber(),
+                    s.getColumnNumber()
+                );
+                metadataOptionContext = deprecatedContext.metadataOption();
+            } else {
+                metadataOptionContext = ctx.metadata().metadataOption();
+
+            }
+            for (var c : metadataOptionContext.fromIdentifier()) {
+                String id = visitFromIdentifier(c);
+                Source src = source(c);
+                if (MetadataAttribute.isSupported(id) == false) {
+                    throw new ParsingException(src, "unsupported metadata field [" + id + "]");
+                }
+                Attribute a = metadataMap.put(id, MetadataAttribute.create(src, id));
+                if (a != null) {
+                    throw new ParsingException(src, "metadata field [" + id + "] already declared [" + a.source().source() + "]");
+                }
+            }
+        }
+        EsSourceOptions esSourceOptions = new EsSourceOptions();
+        if (ctx.retrieveOptions() != null) {
+            for (var o : ctx.retrieveOptions().configOption()) {
+                var nameContext = o.string().get(0);
+                String name = visitString(nameContext).fold().toString();
+                String value = visitString(o.string().get(1)).fold().toString();
+                try {
+                    esSourceOptions.addOption(name, value);
+                } catch (IllegalArgumentException iae) {
+                    var cause = iae.getCause() != null ? ". " + iae.getCause().getMessage() : "";
+                    throw new ParsingException(iae, source(nameContext), "invalid options provided: " + iae.getMessage() + cause);
+                }
+            }
+        }
+        return new EsqlUnresolvedRelation(source, table, Arrays.asList(metadataMap.values().toArray(Attribute[]::new)), esSourceOptions);
+    }
+
+    @Override
     public PlanFactory visitStatsCommand(EsqlBaseParser.StatsCommandContext ctx) {
         List<NamedExpression> aggregates = new ArrayList<>(visitFields(ctx.stats));
         List<NamedExpression> groupings = visitGrouping(ctx.grouping);
