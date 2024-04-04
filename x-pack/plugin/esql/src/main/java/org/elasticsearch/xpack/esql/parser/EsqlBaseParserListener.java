@@ -332,6 +332,36 @@ public interface EsqlBaseParserListener extends ParseTreeListener {
    */
   void exitFromOptions(EsqlBaseParser.FromOptionsContext ctx);
   /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#retrieveCommand}.
+   * @param ctx the parse tree
+   */
+  void enterRetrieveCommand(EsqlBaseParser.RetrieveCommandContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#retrieveCommand}.
+   * @param ctx the parse tree
+   */
+  void exitRetrieveCommand(EsqlBaseParser.RetrieveCommandContext ctx);
+  /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#retrieveIdentifier}.
+   * @param ctx the parse tree
+   */
+  void enterRetrieveIdentifier(EsqlBaseParser.RetrieveIdentifierContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#retrieveIdentifier}.
+   * @param ctx the parse tree
+   */
+  void exitRetrieveIdentifier(EsqlBaseParser.RetrieveIdentifierContext ctx);
+  /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#retrieveOptions}.
+   * @param ctx the parse tree
+   */
+  void enterRetrieveOptions(EsqlBaseParser.RetrieveOptionsContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#retrieveOptions}.
+   * @param ctx the parse tree
+   */
+  void exitRetrieveOptions(EsqlBaseParser.RetrieveOptionsContext ctx);
+  /**
    * Enter a parse tree produced by {@link EsqlBaseParser#configOption}.
    * @param ctx the parse tree
    */
