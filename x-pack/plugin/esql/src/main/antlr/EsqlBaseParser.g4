@@ -22,6 +22,7 @@ query
 sourceCommand
     : explainCommand
     | fromCommand
+    | retrieveCommand
     | rowCommand
     | showCommand
     | metaCommand
@@ -108,6 +109,19 @@ fromIdentifier
     ;
 
 fromOptions
+    : OPTIONS configOption (COMMA configOption)*
+    ;
+
+retrieveCommand
+    : RETRIEVE retrieveIdentifier (COMMA retrieveIdentifier)* metadata? retrieveOptions?
+    ;
+
+retrieveIdentifier
+    : RETRIEVE_UNQUOTED_IDENTIFIER
+    | QUOTED_IDENTIFIER
+    ;
+
+retrieveOptions
     : OPTIONS configOption (COMMA configOption)*
     ;
 
