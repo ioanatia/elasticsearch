@@ -21,6 +21,7 @@ import org.elasticsearch.xpack.esql.plan.logical.Eval;
 import org.elasticsearch.xpack.esql.plan.logical.Keep;
 import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
 import org.elasticsearch.xpack.esql.plan.logical.Rename;
+import org.elasticsearch.xpack.esql.plan.logical.Retrieve;
 import org.elasticsearch.xpack.esql.plan.logical.local.EsqlProject;
 import org.elasticsearch.xpack.esql.stats.FeatureMetric;
 import org.elasticsearch.xpack.esql.type.EsqlDataTypes;
@@ -108,6 +109,7 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
         var resolution = new Batch<>(
             "Resolution",
             new ResolveTable(),
+            new ResolveRetrieve(),
             new ResolveEnrich(),
             new ResolveRefs(),
             new ResolveFunctions(),
@@ -155,6 +157,34 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
             if (context.indexResolution().matches(table.index()) == false) {
                 // TODO: fix this (and tests), or drop check (seems SQL-inherited, where's also defective)
                 new EsqlUnresolvedRelation(
+                    plan.source(),
+                    plan.table(),
+                    plan.metadataFields(),
+                    "invalid [" + table + "] resolution to [" + context.indexResolution() + "]"
+                );
+            }
+
+            EsIndex esIndex = context.indexResolution().get();
+            var attributes = mappingAsAttributes(plan.source(), esIndex.mapping());
+            attributes.addAll(plan.metadataFields());
+            return new EsRelation(plan.source(), esIndex, attributes.isEmpty() ? NO_FIELDS : attributes, plan.esSourceOptions());
+        }
+
+    }
+
+    private static class ResolveRetrieve extends ParameterizedAnalyzerRule<Retrieve, AnalyzerContext> {
+
+        @Override
+        protected LogicalPlan rule(Retrieve plan, AnalyzerContext context) {
+            if (context.indexResolution().isValid() == false) {
+                return plan.unresolvedMessage().equals(context.indexResolution().toString())
+                    ? plan
+                    : new Retrieve(plan.source(), plan.table(), plan.metadataFields(), context.indexResolution().toString());
+            }
+            TableIdentifier table = plan.table();
+            if (context.indexResolution().matches(table.index()) == false) {
+                // TODO: fix this (and tests), or drop check (seems SQL-inherited, where's also defective)
+                new Retrieve(
                     plan.source(),
                     plan.table(),
                     plan.metadataFields(),
