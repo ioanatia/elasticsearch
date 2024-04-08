@@ -21,30 +21,42 @@ public class Retrieve extends UnresolvedRelation {
     private final List<Attribute> metadataFields;
     private final EsSourceOptions esSourceOptions;
 
+    private final String fieldName;
+    private final String queryString;
+
     public Retrieve(
         Source source,
         TableIdentifier table,
         List<Attribute> metadataFields,
         EsSourceOptions esSourceOptions,
+        String fieldName,
+        String queryString,
         String unresolvedMessage
     ) {
         super(source, table, "", false, unresolvedMessage);
         this.metadataFields = metadataFields;
         Objects.requireNonNull(esSourceOptions);
         this.esSourceOptions = esSourceOptions;
+        this.fieldName = fieldName;
+        this.queryString = queryString;
     }
 
     public Retrieve(Source source, TableIdentifier table, List<Attribute> metadataFields, String unresolvedMessage) {
-        this(source, table, metadataFields, EsSourceOptions.NO_OPTIONS, unresolvedMessage);
+        this(source, table, metadataFields, EsSourceOptions.NO_OPTIONS, null, null, unresolvedMessage);
     }
 
     public Retrieve(Source source, TableIdentifier table, List<Attribute> metadataFields, EsSourceOptions esSourceOptions) {
-        this(source, table, metadataFields, esSourceOptions, null);
+        this(source, table, metadataFields, esSourceOptions, null, null, null);
     }
 
     public Retrieve(Source source, TableIdentifier table, List<Attribute> metadataFields) {
-        this(source, table, metadataFields, EsSourceOptions.NO_OPTIONS, null);
+        this(source, table, metadataFields, EsSourceOptions.NO_OPTIONS, null, null, null);
     }
+
+    public Retrieve(Source source, TableIdentifier tableIdentifier, List<Attribute> attributes, EsSourceOptions esSourceOptions, String s) {
+        this(source, tableIdentifier, attributes, esSourceOptions, null, null, s);
+    }
+
 
     public List<Attribute> metadataFields() {
         return metadataFields;
@@ -53,6 +65,10 @@ public class Retrieve extends UnresolvedRelation {
     public EsSourceOptions esSourceOptions() {
         return esSourceOptions;
     }
+
+    public String getFieldName() { return fieldName; }
+
+    public String getQueryString() { return queryString; }
 
     @Override
     protected NodeInfo<UnresolvedRelation> info() {

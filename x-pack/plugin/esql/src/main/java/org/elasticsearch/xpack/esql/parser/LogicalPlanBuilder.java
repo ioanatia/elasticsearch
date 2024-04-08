@@ -262,7 +262,16 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
                 }
             }
         }
-        return new Retrieve(source, table, Arrays.asList(metadataMap.values().toArray(Attribute[]::new)), esSourceOptions);
+
+        String fieldName = null;
+        String queryString = null;
+
+        if (ctx.retrieveWhere() != null) {
+            fieldName = visitRetrieveIdentifier(ctx.retrieveWhere().retrieveIdentifier());
+            queryString = visitString(ctx.retrieveWhere().string()).fold().toString();
+        }
+
+        return new Retrieve(source, table, Arrays.asList(metadataMap.values().toArray(Attribute[]::new)), esSourceOptions, fieldName, queryString, null);
     }
 
     @Override
