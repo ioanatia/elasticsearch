@@ -112,21 +112,17 @@ fromOptions
     : OPTIONS configOption (COMMA configOption)*
     ;
 
-retrieveCommand
-    : RETRIEVE retrieveIdentifier (COMMA retrieveIdentifier)* metadata? retrieveOptions?
-    ;
-
-retrieveIdentifier
-    : RETRIEVE_UNQUOTED_IDENTIFIER
-    | QUOTED_IDENTIFIER
-    ;
-
-retrieveOptions
-    : OPTIONS configOption (COMMA configOption)*
-    ;
-
 configOption
-    : string ASSIGN string
+     : string ASSIGN string
+     ;
+
+metadataOption
+    : METADATA fromIdentifier (COMMA fromIdentifier)*
+    | deprecated_metadata
+    ;
+
+deprecated_metadata
+    : OPENING_BRACKET metadataOption CLOSING_BRACKET
     ;
 
 metadata
@@ -134,12 +130,33 @@ metadata
     | deprecated_metadata
     ;
 
-metadataOption
-    : METADATA fromIdentifier (COMMA fromIdentifier)*
+retrieveCommand
+    : RETRIEVE retrieveIdentifier (COMMA retrieveIdentifier)* retrieveWhere? retrieveMetadata? retrieveOptions?
     ;
 
-deprecated_metadata
-    : OPENING_BRACKET metadataOption CLOSING_BRACKET
+retrieveIdentifier
+    : RETRIEVE_UNQUOTED_IDENTIFIER
+    | QUOTED_IDENTIFIER
+    ;
+
+retrieveWhere
+    : RETRIEVE_WHERE MATCH retrieveIdentifier COMMA string
+    ;
+
+retrieveOptions
+    : OPTIONS retrieveConfigOption (COMMA retrieveConfigOption)*
+    ;
+
+retrieveConfigOption
+    : string ASSIGN string
+    ;
+
+retrieveMetadata
+    : retrieveMetadataOption
+    ;
+
+retrieveMetadataOption
+    : METADATA fromIdentifier (COMMA fromIdentifier)*
     ;
 
 evalCommand

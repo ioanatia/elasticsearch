@@ -234,22 +234,9 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
         Source source = source(ctx);
         TableIdentifier table = new TableIdentifier(source, null, visitRetrieveIdentifiers(ctx.retrieveIdentifier()));
         Map<String, Attribute> metadataMap = new LinkedHashMap<>();
-        if (ctx.metadata() != null) {
-            var deprecatedContext = ctx.metadata().deprecated_metadata();
-            MetadataOptionContext metadataOptionContext = null;
-            if (deprecatedContext != null) {
-                var s = source(deprecatedContext).source();
-                addWarning(
-                    "Line {}:{}: Square brackets '[]' need to be removed in FROM METADATA declaration",
-                    s.getLineNumber(),
-                    s.getColumnNumber()
-                );
-                metadataOptionContext = deprecatedContext.metadataOption();
-            } else {
-                metadataOptionContext = ctx.metadata().metadataOption();
-
-            }
-            for (var c : metadataOptionContext.fromIdentifier()) {
+        if (ctx.retrieveMetadata() != null) {
+            EsqlBaseParser.RetrieveMetadataOptionContext retrieveMetadataOptionContext = ctx.retrieveMetadata().retrieveMetadataOption();
+            for (var c : retrieveMetadataOptionContext.fromIdentifier()) {
                 String id = visitFromIdentifier(c);
                 Source src = source(c);
                 if (MetadataAttribute.isSupported(id) == false) {
@@ -263,7 +250,7 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
         }
         EsSourceOptions esSourceOptions = new EsSourceOptions();
         if (ctx.retrieveOptions() != null) {
-            for (var o : ctx.retrieveOptions().configOption()) {
+            for (var o : ctx.retrieveOptions().retrieveConfigOption()) {
                 var nameContext = o.string().get(0);
                 String name = visitString(nameContext).fold().toString();
                 String value = visitString(o.string().get(1)).fold().toString();
