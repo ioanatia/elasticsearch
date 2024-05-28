@@ -23,6 +23,7 @@ import static java.util.stream.Collectors.toUnmodifiableMap;
 import static org.elasticsearch.xpack.esql.core.type.DataTypes.BOOLEAN;
 import static org.elasticsearch.xpack.esql.core.type.DataTypes.BYTE;
 import static org.elasticsearch.xpack.esql.core.type.DataTypes.DATETIME;
+import static org.elasticsearch.xpack.esql.core.type.DataTypes.DENSE_VECTOR;
 import static org.elasticsearch.xpack.esql.core.type.DataTypes.DOUBLE;
 import static org.elasticsearch.xpack.esql.core.type.DataTypes.FLOAT;
 import static org.elasticsearch.xpack.esql.core.type.DataTypes.HALF_FLOAT;
@@ -91,7 +92,8 @@ public final class EsqlDataTypes {
         GEO_SHAPE,
         COUNTER_LONG,
         COUNTER_INTEGER,
-        COUNTER_DOUBLE
+        COUNTER_DOUBLE,
+        DENSE_VECTOR
     ).sorted(Comparator.comparing(DataType::typeName)).toList();
 
     private static final Map<String, DataType> NAME_TO_TYPE = TYPES.stream().collect(toUnmodifiableMap(DataType::typeName, t -> t));

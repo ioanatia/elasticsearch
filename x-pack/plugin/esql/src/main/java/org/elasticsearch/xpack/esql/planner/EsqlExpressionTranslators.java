@@ -8,6 +8,7 @@
 package org.elasticsearch.xpack.esql.planner;
 
 import org.apache.lucene.document.ShapeField;
+import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.lucene.BytesRefs;
 import org.elasticsearch.common.time.DateFormatter;
@@ -32,6 +33,7 @@ import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.core.type.DataType;
 import org.elasticsearch.xpack.esql.core.type.DataTypes;
 import org.elasticsearch.xpack.esql.core.util.Check;
+import org.elasticsearch.search.vectors.KnnVectorQueryBuilder;
 import org.elasticsearch.xpack.esql.expression.function.scalar.ip.CIDRMatch;
 import org.elasticsearch.xpack.esql.expression.function.scalar.spatial.SpatialRelatesFunction;
 import org.elasticsearch.xpack.esql.expression.function.scalar.spatial.SpatialRelatesUtils;
@@ -81,7 +83,8 @@ public final class EsqlExpressionTranslators {
         new ExpressionTranslators.StringQueries(),
         new ExpressionTranslators.Matches(),
         new ExpressionTranslators.MultiMatches(),
-        new Scalars()
+        new Scalars(),
+        new Knn()
     );
 
     public static Query toQuery(Expression e, TranslatorHandler handler) {
@@ -414,6 +417,24 @@ public final class EsqlExpressionTranslators {
             } catch (IllegalArgumentException e) {
                 throw new QlIllegalArgumentException(e.getMessage(), e);
             }
+        }
+    }
+
+    public static class Knn extends ExpressionTranslator<Expression> {
+        @Override
+        protected Query asQuery(Expression f, TranslatorHandler handler) {
+            return doTranslate(f, handler);
+        }
+
+        public static Query doTranslate(Expression f, TranslatorHandler handler) {
+            /*String fieldName = null;
+            float[] queryVector = null;
+            Integer numCands;
+            Float vectorSimilarity;
+            KnnVectorQueryBuilder knnVectorQueryBuilder = new KnnVectorQueryBuilder(fieldName, queryVector, numCands, vectorSimilarity);
+            return null;
+             */
+            throw new UnsupportedOperationException("it doesn't work yet!");
         }
     }
 }

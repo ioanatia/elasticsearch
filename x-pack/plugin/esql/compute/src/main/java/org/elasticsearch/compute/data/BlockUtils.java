@@ -273,6 +273,10 @@ public final class BlockUtils {
                 yield new Doc(v.shards().getInt(offset), v.segments().getInt(offset), v.docs().getInt(offset));
             }
             case COMPOSITE -> throw new IllegalArgumentException("can't read values from composite blocks");
+            case DENSE_VECTOR -> {
+                //DoubleArrayVector v = ((DoubleArrayVector) block.asVector());
+                throw new UnsupportedOperationException("dense vector block not defined");
+            }
             case UNKNOWN -> throw new IllegalArgumentException("can't read values from [" + block + "]");
         };
     }

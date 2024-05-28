@@ -9,9 +9,9 @@ package org.elasticsearch.xpack.esql.plan.physical;
 
 import org.elasticsearch.index.IndexMode;
 import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.search.vectors.KnnVectorQueryBuilder;
 import org.elasticsearch.xpack.esql.core.expression.FieldAttribute;
 import org.elasticsearch.xpack.esql.core.expression.predicate.fulltext.MatchQueryPredicate;
-import org.elasticsearch.xpack.esql.core.planner.TranslatorHandler;
 import org.elasticsearch.xpack.esql.core.type.EsField;
 import org.elasticsearch.xpack.esql.core.expression.Attribute;
 import org.elasticsearch.xpack.esql.core.index.EsIndex;
@@ -43,14 +43,38 @@ public class EsSourceExec extends LeafExec {
         if (relation instanceof EsRelationWithFilter) {
             String fieldName = ((EsRelationWithFilter) relation).getFieldName();
             String queryString = ((EsRelationWithFilter) relation).getQueryString();
-
             if (fieldName != null && queryString != null) {
-                FieldAttribute fa = new FieldAttribute(Source.EMPTY, fieldName, new EsField(fieldName, TEXT, emptyMap(), true));
-                MatchQueryPredicate mmqp = new MatchQueryPredicate(relation.source(), fa, queryString, "");
-                this.query = TRANSLATOR_HANDLER.asQuery(mmqp).asBuilder();
-                this.withScores = true;
+                float[] queryVector;
+                if ((queryVector = asVector(queryString)) != null) {
+                    Integer numCands = 10;
+                    Float similarity = 0.9f;
+                    this.query = new KnnVectorQueryBuilder(fieldName, queryVector, numCands, similarity);
+                    this.withScores = true;
+                } else {
+                    FieldAttribute fa = new FieldAttribute(Source.EMPTY, fieldName, new EsField(fieldName, TEXT, emptyMap(), true));
+                    MatchQueryPredicate mmqp = new MatchQueryPredicate(relation.source(), fa, queryString, "");
+                    this.query = TRANSLATOR_HANDLER.asQuery(mmqp).asBuilder();
+                    this.withScores = true;
+                }
             }
         }
+    }
+
+    private float[] asVector(String queryString) {
+        float[] vector = null;
+        try {
+            String[] valuesArray = queryString
+                .replaceFirst("\\[", "")
+                .replaceFirst("]", "")
+                .split("\\s*,\\s*");
+            vector = new float[valuesArray.length];
+            for (int i = 0; i < valuesArray.length; i++) {
+                vector[i] = Float.parseFloat(valuesArray[i]);
+            }
+        } catch (Throwable t) {
+           return null;
+        }
+        return vector;
     }
 
     public EsSourceExec(Source source, EsIndex index, List<Attribute> attributes, QueryBuilder query, IndexMode indexMode) {

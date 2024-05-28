@@ -14,6 +14,8 @@ import org.elasticsearch.common.geo.ShapeRelation;
 import org.elasticsearch.compute.data.Block;
 import org.elasticsearch.compute.data.BooleanBlock;
 import org.elasticsearch.compute.data.BytesRefBlock;
+import org.elasticsearch.compute.data.DoubleBigArrayBlock;
+import org.elasticsearch.compute.data.DoubleBigArrayVector;
 import org.elasticsearch.compute.data.DoubleBlock;
 import org.elasticsearch.compute.data.IntBlock;
 import org.elasticsearch.compute.data.LongBlock;
@@ -157,6 +159,10 @@ abstract class QueryList {
                 case NULL -> offset -> null;
                 case DOC -> throw new EsqlIllegalArgumentException("can't read values from [doc] block");
                 case COMPOSITE -> throw new EsqlIllegalArgumentException("can't read values from [composite] block");
+                case DENSE_VECTOR -> {
+                    DoubleBigArrayBlock vectorBlock = (DoubleBigArrayBlock) block;
+                    yield vectorBlock::getDouble;
+                }
                 case UNKNOWN -> throw new EsqlIllegalArgumentException("can't read values from [" + block + "]");
             };
         }

@@ -18,7 +18,7 @@ import java.util.List;
 
 public interface EstimatesRowSize {
     static PhysicalPlan estimateRowSize(int extraRowSize, PhysicalPlan plan) {
-        EstimatesRowSize.State state = new EstimatesRowSize.State();
+        State state = new State();
         state.maxEstimatedRowSize = state.estimatedRowSize = extraRowSize;
         return plan.transformDown(exec -> {
             if (exec instanceof EstimatesRowSize r) {
@@ -119,6 +119,7 @@ public interface EstimatesRowSize {
             case NULL -> 0;
             // TODO: provide a specific estimate for aggregated_metrics_double
             case COMPOSITE -> throw new EsqlIllegalArgumentException("can't estimate size for composite blocks");
+            case DENSE_VECTOR -> 1024;
             case UNKNOWN -> throw new EsqlIllegalArgumentException("[unknown] can't be the result of field extraction");
         };
     }

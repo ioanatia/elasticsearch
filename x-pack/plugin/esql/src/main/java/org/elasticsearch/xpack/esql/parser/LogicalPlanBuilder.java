@@ -266,6 +266,9 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
         if (ctx.retrieveWhere() != null) {
             fieldName = visitRetrieveIdentifier(ctx.retrieveWhere().retrieveIdentifier());
             queryString = visitString(ctx.retrieveWhere().string()).fold().toString();
+        } else if (ctx.retrieveKnn() != null) {
+            fieldName = visitRetrieveIdentifier(ctx.retrieveKnn().retrieveIdentifier());
+            queryString = visitString(ctx.retrieveKnn().string()).fold().toString();
         }
 
         return new Retrieve(source, table, Arrays.asList(metadataMap.values().toArray(Attribute[]::new)),  IndexMode.STANDARD, fieldName, queryString, null);

@@ -127,7 +127,7 @@ deprecated_metadata
     ;
 
 retrieveCommand
-    : RETRIEVE retrieveIdentifier (COMMA retrieveIdentifier)* retrieveWhere? retrieveMetadata?
+    : RETRIEVE retrieveIdentifier (COMMA retrieveIdentifier)* retrieveWhere? retrieveKnn?  retrieveMetadata?
     ;
 
 retrieveIdentifier
@@ -137,6 +137,10 @@ retrieveIdentifier
 
 retrieveWhere
     : RETRIEVE_WHERE MATCH retrieveIdentifier COMMA string
+    ;
+
+retrieveKnn
+    : KNN retrieveIdentifier COMMA string
     ;
 
 retrieveMetadata
