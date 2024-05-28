@@ -1,7 +1,6 @@
 package org.elasticsearch.compute.lucene;
 
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.document.TextField;
@@ -39,19 +38,20 @@ import org.elasticsearch.index.cache.bitset.BitsetFilterCache;
 import org.elasticsearch.index.fielddata.IndexFieldDataCache;
 import org.elasticsearch.index.mapper.IdFieldMapper;
 import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.index.mapper.MapperMetrics;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.mapper.MapperServiceTestCase;
 import org.elasticsearch.index.mapper.NumberFieldMapper;
 import org.elasticsearch.index.mapper.SourceLoader;
 import org.elasticsearch.index.mapper.TextFieldMapper;
 import org.elasticsearch.index.mapper.TextSearchInfo;
-import org.elasticsearch.index.query.AbstractQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.SearchExecutionContext;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.similarity.SimilarityService;
 import org.elasticsearch.indices.CrankyCircuitBreakerService;
 import org.elasticsearch.indices.breaker.NoneCircuitBreakerService;
+import org.hamcrest.Matcher;
 import org.junit.After;
 
 import java.io.IOException;
@@ -64,6 +64,7 @@ import java.util.function.Function;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.matchesRegex;
 
 public class LuceneRetrieveOperatorTests extends AnyOperatorTestCase {
     private static final MappedFieldType S_FIELD = new NumberFieldMapper.NumberFieldType("s", NumberFieldMapper.NumberType.LONG);
@@ -119,16 +120,15 @@ public class LuceneRetrieveOperatorTests extends AnyOperatorTestCase {
     }
 
     @Override
-    protected String expectedToStringOfSimple() {
-        assumeFalse("can't support variable maxPageSize", true); // TODO allow testing this
-        return "LuceneRetrieveOperator[shardId=0, maxPageSize=**random**]";
+    protected Matcher<String> expectedDescriptionOfSimple() {
+        return matchesRegex(
+            "LuceneTopNSourceOperator\\[dataPartitioning = (DOC|SHARD|SEGMENT), maxPageSize = \\d+, limit = 100, sorts = \\[\\{.+}]]"
+        );
     }
 
     @Override
-    protected String expectedDescriptionOfSimple() {
-        assumeFalse("can't support variable maxPageSize", true); // TODO allow testing this
-        return """
-            LuceneRetrieveOperator[dataPartitioning = SHARD, maxPageSize = **random**, limit = 100, sorts = [{"s":{"order":"asc"}}]]""";
+    protected Matcher<String> expectedToStringOfSimple() {
+        return matchesRegex("LuceneTopNSourceOperator\\[maxPageSize = \\d+, limit = 100, sorts = \\[\\{.+}]]");
     }
 
     // TODO tests for the other data partitioning configurations
@@ -423,18 +423,8 @@ public class LuceneRetrieveOperatorTests extends AnyOperatorTestCase {
 
         final SimilarityService similarityService = new SimilarityService(indexSettings, null, Map.of());
         final long nowInMillis = randomNonNegativeLong();
-        return new SearchExecutionContext(0, 0, indexSettings, new BitsetFilterCache(indexSettings, new BitsetFilterCache.Listener() {
-            @Override
-            public void onCache(ShardId shardId, Accountable accountable) {
-
-            }
-
-            @Override
-            public void onRemoval(ShardId shardId, Accountable accountable) {
-
-            }
-        }),
-            (ft, fdc) -> ft.fielddataBuilder(fdc).build(new IndexFieldDataCache.None(), new NoneCircuitBreakerService()),
+        return new SearchExecutionContext(0, 0, indexSettings, null,
+            null,
             mapperService,
             mapperService.mappingLookup(),
             similarityService,
@@ -448,8 +438,10 @@ public class LuceneRetrieveOperatorTests extends AnyOperatorTestCase {
             null,
             () -> true,
             null,
-            Collections.emptyMap()
+            Collections.emptyMap(),
+            MapperMetrics.NOOP
         );
+
     }
 
     private LuceneRetrieveOperator.Factory getFactory(

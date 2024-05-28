@@ -7,25 +7,22 @@
 
 package org.elasticsearch.xpack.esql.plan.logical;
 
-import org.elasticsearch.xpack.ql.expression.Attribute;
-import org.elasticsearch.xpack.ql.index.EsIndex;
-import org.elasticsearch.xpack.ql.options.EsSourceOptions;
-import org.elasticsearch.xpack.ql.plan.logical.EsRelation;
-import org.elasticsearch.xpack.ql.tree.Source;
+import org.elasticsearch.index.IndexMode;
+import org.elasticsearch.xpack.esql.core.expression.Attribute;
+import org.elasticsearch.xpack.esql.core.index.EsIndex;
+import org.elasticsearch.xpack.esql.core.tree.Source;
 
 import java.util.List;
 
 public class EsRelationWithFilter extends EsRelation {
     private final String fieldName;
-
     private final String queryString;
 
     public EsRelationWithFilter(
         Source source,
         EsIndex index,
         List<Attribute> attributes,
-        EsSourceOptions esSourceOptions,
-        boolean frozen,
+        IndexMode indexMode,
         String fieldName,
         String queryString
         ) {
@@ -33,8 +30,8 @@ public class EsRelationWithFilter extends EsRelation {
             source,
             index,
             attributes,
-            esSourceOptions,
-            frozen
+            indexMode,
+            false
         );
 
         this.fieldName = fieldName;

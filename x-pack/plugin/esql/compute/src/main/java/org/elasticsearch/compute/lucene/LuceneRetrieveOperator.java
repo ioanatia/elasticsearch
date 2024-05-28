@@ -63,7 +63,7 @@ public class LuceneRetrieveOperator extends LuceneOperator {
         this.featureExtractor = new RetrieveFeatureExtractor(features);
     }
 
-    public static class Factory implements LuceneOperator.Factory {
+    public static class Factory extends LuceneOperator.Factory {
         private final DataPartitioning dataPartitioning;
         private final int taskConcurrency;
         private final int maxPageSize;
@@ -82,6 +82,7 @@ public class LuceneRetrieveOperator extends LuceneOperator {
             int maxPageSize,
             int limit
         ) {
+            super(contexts, queryFunction, dataPartitioning, taskConcurrency, limit, ScoreMode.TOP_DOCS);
             this.maxPageSize = maxPageSize;
             this.limit = limit;
             this.dataPartitioning = dataPartitioning;
@@ -96,11 +97,6 @@ public class LuceneRetrieveOperator extends LuceneOperator {
         @Override
         public String describe() {
             return null;
-        }
-
-        @Override
-        public int taskConcurrency() {
-            return 0;
         }
 
         public int maxPageSize() {
@@ -152,7 +148,7 @@ public class LuceneRetrieveOperator extends LuceneOperator {
     }
 
     @Override
-    public Page getOutput() {
+    public Page getCheckedOutput() throws IOException {
         if (isFinished()) {
             return null;
         }

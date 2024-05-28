@@ -43,7 +43,6 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
     private final Expression limit;
     private final List<FieldSort> sorts;
     private final List<Attribute> attrs;
-
     private boolean withScores = false;
 
     /**
@@ -62,8 +61,8 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
         }
     }
 
-    public EsQueryExec(Source source, EsIndex index, IndexMode indexMode,, QueryBuilder query, boolean withScores) {
-        this(source, indexMode, sourceAttributes(source, indexMode), query, null, null, null, withScores);
+    public EsQueryExec(Source source, EsIndex index, IndexMode indexMode, QueryBuilder query, boolean withScores) {
+        this(source, index, indexMode, sourceAttributes(source, indexMode), query, null, null, null);
         this.withScores = withScores;
     }
 
@@ -77,7 +76,7 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
         List<FieldSort> sorts,
         Integer estimatedRowSize
     ) {
-        this(source, index, attrs, query, limit, sorts, estimatedRowSize, false);
+        this(source, index, indexMode, attrs, query, limit, sorts, estimatedRowSize, false);
     }
 
     public EsQueryExec(
@@ -98,8 +97,8 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
         this.attrs = attrs;
         this.limit = limit;
         this.sorts = sorts;
-        this.withScores = withScores;
         this.estimatedRowSize = estimatedRowSize;
+        this.withScores = withScores;
     }
 
     private static List<Attribute> sourceAttributes(Source source, IndexMode indexMode) {
@@ -120,7 +119,7 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
 
     @Override
     protected NodeInfo<EsQueryExec> info() {
-        return NodeInfo.create(this, EsQueryExec::new, index, indexMode, attrs, query, limit, sorts, estimatedRowSize, withScores);
+        return NodeInfo.create(this, EsQueryExec::new, index, indexMode, attrs, query, limit, sorts, estimatedRowSize);
     }
 
     public EsIndex index() {
@@ -144,11 +143,11 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
         return limit;
     }
 
-    public boolean withScores() { return withScores; }
-
     public List<FieldSort> sorts() {
         return sorts;
     }
+
+    public boolean withScores() { return withScores; }
 
     public List<Attribute> attrs() {
         return attrs;
@@ -162,7 +161,6 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
         return estimatedRowSize;
     }
 
-    @Override
     @Override
     public PhysicalPlan estimateRowSize(State state) {
         int size;
@@ -180,16 +178,6 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
             : new EsQueryExec(source(), index, indexMode, attrs, query, limit, sorts, size, withScores);
     }
 
-    public EsQueryExec withSorts(List<FieldSort> sorts) {
-        if (indexMode == IndexMode.TIME_SERIES) {
-            assert false : "time-series index mode doesn't support sorts";
-            throw new UnsupportedOperationException("time-series index mode doesn't support sorts");
-        }
-        return Objects.equals(this.estimatedRowSize, size)
-            ? this
-            : new EsQueryExec(source(), index, indexMode, attrs, query, limit, sorts, size, withScores);
-    }
-
     public EsQueryExec withLimit(Expression limit) {
         return Objects.equals(this.limit, limit)
             ? this
@@ -200,9 +188,19 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
         return indexMode != IndexMode.TIME_SERIES;
     }
 
+    public EsQueryExec withSorts(List<FieldSort> sorts) {
+        if (indexMode == IndexMode.TIME_SERIES) {
+            assert false : "time-series index mode doesn't support sorts";
+            throw new UnsupportedOperationException("time-series index mode doesn't support sorts");
+        }
+        return Objects.equals(this.sorts, sorts)
+            ? this
+            : new EsQueryExec(source(), index, indexMode, attrs, query, limit, sorts, estimatedRowSize, withScores);
+    }
+
     @Override
     public int hashCode() {
-        return Objects.hash(index, indexMode, attrs, query, limit, sorts);
+        return Objects.hash(index, indexMode, attrs, query, limit, sorts, withScores);
     }
 
     @Override
@@ -222,7 +220,8 @@ public class EsQueryExec extends LeafExec implements EstimatesRowSize {
             && Objects.equals(query, other.query)
             && Objects.equals(limit, other.limit)
             && Objects.equals(sorts, other.sorts)
-            && Objects.equals(estimatedRowSize, other.estimatedRowSize);
+            && Objects.equals(estimatedRowSize, other.estimatedRowSize)
+            && Objects.equals(withScores, other.withScores);
     }
 
     @Override

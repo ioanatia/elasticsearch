@@ -7,71 +7,56 @@
 
 package org.elasticsearch.xpack.esql.plan.logical;
 
-import org.elasticsearch.xpack.ql.expression.Attribute;
-import org.elasticsearch.xpack.ql.options.EsSourceOptions;
-import org.elasticsearch.xpack.ql.plan.TableIdentifier;
-import org.elasticsearch.xpack.ql.plan.logical.UnresolvedRelation;
-import org.elasticsearch.xpack.ql.tree.NodeInfo;
-import org.elasticsearch.xpack.ql.tree.Source;
-
+import org.elasticsearch.index.IndexMode;
+import org.elasticsearch.xpack.esql.core.capabilities.Unresolvable;
+import org.elasticsearch.xpack.esql.core.expression.Attribute;
+import org.elasticsearch.xpack.esql.core.plan.TableIdentifier;
+import org.elasticsearch.xpack.esql.core.plan.logical.LeafPlan;
+import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
+import org.elasticsearch.xpack.esql.core.tree.Source;
 import java.util.List;
-import java.util.Objects;
 
 public class Retrieve extends UnresolvedRelation {
     private final List<Attribute> metadataFields;
-    private final EsSourceOptions esSourceOptions;
-
     private final String fieldName;
     private final String queryString;
+
+    private final IndexMode indexMode;
 
     public Retrieve(
         Source source,
         TableIdentifier table,
         List<Attribute> metadataFields,
-        EsSourceOptions esSourceOptions,
+        IndexMode indexMode,
         String fieldName,
         String queryString,
         String unresolvedMessage
     ) {
         super(source, table, "", false, unresolvedMessage);
         this.metadataFields = metadataFields;
-        Objects.requireNonNull(esSourceOptions);
-        this.esSourceOptions = esSourceOptions;
         this.fieldName = fieldName;
         this.queryString = queryString;
+        this.indexMode = indexMode;
     }
 
-    public Retrieve(Source source, TableIdentifier table, List<Attribute> metadataFields, String unresolvedMessage) {
-        this(source, table, metadataFields, EsSourceOptions.NO_OPTIONS, null, null, unresolvedMessage);
+    public Retrieve(Source source, TableIdentifier table, List<Attribute> metadataFields,  IndexMode indexMode, String unresolvedMessage) {
+        this(source, table, metadataFields, indexMode, null, null, unresolvedMessage);
     }
-
-    public Retrieve(Source source, TableIdentifier table, List<Attribute> metadataFields, EsSourceOptions esSourceOptions) {
-        this(source, table, metadataFields, esSourceOptions, null, null, null);
-    }
-
-    public Retrieve(Source source, TableIdentifier table, List<Attribute> metadataFields) {
-        this(source, table, metadataFields, EsSourceOptions.NO_OPTIONS, null, null, null);
-    }
-
-    public Retrieve(Source source, TableIdentifier tableIdentifier, List<Attribute> attributes, EsSourceOptions esSourceOptions, String s) {
-        this(source, tableIdentifier, attributes, esSourceOptions, null, null, s);
-    }
-
 
     public List<Attribute> metadataFields() {
         return metadataFields;
-    }
-
-    public EsSourceOptions esSourceOptions() {
-        return esSourceOptions;
     }
 
     public String getFieldName() { return fieldName; }
 
     public String getQueryString() { return queryString; }
 
+    public IndexMode indexMode() {
+        return indexMode;
+    }
+
     @Override
     protected NodeInfo<UnresolvedRelation> info() {
-        return NodeInfo.create(this, Retrieve::new, table(), metadataFields(), esSourceOptions(), unresolvedMessage());
+        return NodeInfo.create(this, Retrieve::new, table(), metadataFields(), indexMode(), unresolvedMessage());
     }
 }

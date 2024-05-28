@@ -9,10 +9,10 @@ package org.elasticsearch.xpack.esql.plan.physical;
 
 import org.elasticsearch.index.IndexMode;
 import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.xpack.ql.expression.FieldAttribute;
-import org.elasticsearch.xpack.ql.expression.predicate.fulltext.MatchQueryPredicate;
-import org.elasticsearch.xpack.ql.planner.TranslatorHandler;
-import org.elasticsearch.xpack.ql.type.EsField;
+import org.elasticsearch.xpack.esql.core.expression.FieldAttribute;
+import org.elasticsearch.xpack.esql.core.expression.predicate.fulltext.MatchQueryPredicate;
+import org.elasticsearch.xpack.esql.core.planner.TranslatorHandler;
+import org.elasticsearch.xpack.esql.core.type.EsField;
 import org.elasticsearch.xpack.esql.core.expression.Attribute;
 import org.elasticsearch.xpack.esql.core.index.EsIndex;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
@@ -26,8 +26,7 @@ import java.util.Objects;
 
 import static java.util.Collections.emptyMap;
 import static org.elasticsearch.xpack.esql.optimizer.LocalPhysicalPlanOptimizer.TRANSLATOR_HANDLER;
-import static org.elasticsearch.xpack.ql.tree.Source.EMPTY;
-import static org.elasticsearch.xpack.ql.type.DataTypes.TEXT;
+import static org.elasticsearch.xpack.esql.core.type.DataTypes.TEXT;
 
 public class EsSourceExec extends LeafExec {
 
@@ -46,7 +45,7 @@ public class EsSourceExec extends LeafExec {
             String queryString = ((EsRelationWithFilter) relation).getQueryString();
 
             if (fieldName != null && queryString != null) {
-                FieldAttribute fa = new FieldAttribute(EMPTY, fieldName, new EsField(fieldName, TEXT, emptyMap(), true));
+                FieldAttribute fa = new FieldAttribute(Source.EMPTY, fieldName, new EsField(fieldName, TEXT, emptyMap(), true));
                 MatchQueryPredicate mmqp = new MatchQueryPredicate(relation.source(), fa, queryString, "");
                 this.query = TRANSLATOR_HANDLER.asQuery(mmqp).asBuilder();
                 this.withScores = true;

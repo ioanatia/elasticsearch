@@ -32,7 +32,9 @@ public class MetadataAttribute extends TypedAttribute {
         IgnoredFieldMapper.NAME,
         tuple(DataTypes.KEYWORD, true),
         SourceFieldMapper.NAME,
-        tuple(DataTypes.SOURCE, false)
+        tuple(DataTypes.SOURCE, false),
+        "_score",
+        tuple(DataTypes.DOUBLE, false)
     );
 
     private final boolean searchable;

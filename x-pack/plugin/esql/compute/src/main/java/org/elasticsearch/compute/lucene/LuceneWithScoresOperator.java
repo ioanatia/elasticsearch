@@ -41,11 +41,9 @@ import java.util.function.Function;
 public final class LuceneWithScoresOperator extends LuceneOperator {
     private ScoreDoc scoreDoc;
 
-    public static final class Factory implements LuceneOperator.Factory {
+    public static final class Factory extends LuceneOperator.Factory {
         private final int taskConcurrency;
         private final int maxPageSize;
-        private final int limit;
-        private final DataPartitioning dataPartitioning;
         private final LuceneSliceQueue sliceQueue;
 
         public Factory(
@@ -56,9 +54,8 @@ public final class LuceneWithScoresOperator extends LuceneOperator {
             int maxPageSize,
             int limit
         ) {
+            super(contexts, queryFunction, dataPartitioning, taskConcurrency, limit, ScoreMode.TOP_DOCS);
             this.maxPageSize = maxPageSize;
-            this.limit = limit;
-            this.dataPartitioning = dataPartitioning;
             var weightFunction = weightFunction(queryFunction, ScoreMode.TOP_DOCS_WITH_SCORES);
             this.sliceQueue = LuceneSliceQueue.create(contexts, weightFunction, dataPartitioning, taskConcurrency);
             this.taskConcurrency = Math.min(sliceQueue.totalSlices(), taskConcurrency);
@@ -69,17 +66,8 @@ public final class LuceneWithScoresOperator extends LuceneOperator {
             return new LuceneWithScoresOperator(driverContext.blockFactory(), maxPageSize, limit, sliceQueue);
         }
 
-        @Override
-        public int taskConcurrency() {
-            return taskConcurrency;
-        }
-
         public int maxPageSize() {
             return maxPageSize;
-        }
-
-        public int limit() {
-            return limit;
         }
 
         @Override
@@ -129,7 +117,7 @@ public final class LuceneWithScoresOperator extends LuceneOperator {
     }
 
     @Override
-    public Page getOutput() {
+    public Page getCheckedOutput() {
         if (isFinished()) {
             return null;
         }

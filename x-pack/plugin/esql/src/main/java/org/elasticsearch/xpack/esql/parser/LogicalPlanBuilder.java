@@ -246,8 +246,8 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
         Map<String, Attribute> metadataMap = new LinkedHashMap<>();
         if (ctx.retrieveMetadata() != null) {
             EsqlBaseParser.RetrieveMetadataOptionContext retrieveMetadataOptionContext = ctx.retrieveMetadata().retrieveMetadataOption();
-            for (var c : retrieveMetadataOptionContext.fromIdentifier()) {
-                String id = visitFromIdentifier(c);
+            for (var c : retrieveMetadataOptionContext.indexIdentifier()) {
+                String id = visitIndexIdentifier(c);
                 Source src = source(c);
                 if (MetadataAttribute.isSupported(id) == false) {
                     throw new ParsingException(src, "unsupported metadata field [" + id + "]");
@@ -260,21 +260,6 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
         }
         metadataMap.put("_score", MetadataAttribute.create(source(ctx), "_score"));
 
-        EsSourceOptions esSourceOptions = new EsSourceOptions();
-        if (ctx.retrieveOptions() != null) {
-            for (var o : ctx.retrieveOptions().retrieveConfigOption()) {
-                var nameContext = o.string().get(0);
-                String name = visitString(nameContext).fold().toString();
-                String value = visitString(o.string().get(1)).fold().toString();
-                try {
-                    esSourceOptions.addOption(name, value);
-                } catch (IllegalArgumentException iae) {
-                    var cause = iae.getCause() != null ? ". " + iae.getCause().getMessage() : "";
-                    throw new ParsingException(iae, source(nameContext), "invalid options provided: " + iae.getMessage() + cause);
-                }
-            }
-        }
-
         String fieldName = null;
         String queryString = null;
 
@@ -283,7 +268,7 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
             queryString = visitString(ctx.retrieveWhere().string()).fold().toString();
         }
 
-        return new Retrieve(source, table, Arrays.asList(metadataMap.values().toArray(Attribute[]::new)), esSourceOptions, fieldName, queryString, null);
+        return new Retrieve(source, table, Arrays.asList(metadataMap.values().toArray(Attribute[]::new)),  IndexMode.STANDARD, fieldName, queryString, null);
     }
 
     @Override
