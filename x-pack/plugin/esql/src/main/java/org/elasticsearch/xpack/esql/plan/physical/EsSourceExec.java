@@ -7,18 +7,19 @@
 
 package org.elasticsearch.xpack.esql.plan.physical;
 
+import org.elasticsearch.index.IndexMode;
 import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.xpack.esql.plan.logical.EsRelationWithFilter;
-import org.elasticsearch.xpack.ql.expression.Attribute;
 import org.elasticsearch.xpack.ql.expression.FieldAttribute;
 import org.elasticsearch.xpack.ql.expression.predicate.fulltext.MatchQueryPredicate;
-import org.elasticsearch.xpack.ql.index.EsIndex;
-import org.elasticsearch.xpack.ql.plan.logical.EsRelation;
 import org.elasticsearch.xpack.ql.planner.TranslatorHandler;
-import org.elasticsearch.xpack.ql.tree.NodeInfo;
-import org.elasticsearch.xpack.ql.tree.NodeUtils;
-import org.elasticsearch.xpack.ql.tree.Source;
 import org.elasticsearch.xpack.ql.type.EsField;
+import org.elasticsearch.xpack.esql.core.expression.Attribute;
+import org.elasticsearch.xpack.esql.core.index.EsIndex;
+import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
+import org.elasticsearch.xpack.esql.core.tree.NodeUtils;
+import org.elasticsearch.xpack.esql.core.tree.Source;
+import org.elasticsearch.xpack.esql.plan.logical.EsRelationWithFilter;
+import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
 
 import java.util.List;
 import java.util.Objects;
@@ -33,11 +34,12 @@ public class EsSourceExec extends LeafExec {
     private final EsIndex index;
     private final List<Attribute> attributes;
     private QueryBuilder query;
+    private final IndexMode indexMode;
 
     private boolean withScores = false;
 
     public EsSourceExec(EsRelation relation) {
-        this(relation.source(), relation.index(), relation.output(), null);
+        this(relation.source(), relation.index(), relation.output(), null, relation.indexMode());
 
         if (relation instanceof EsRelationWithFilter) {
             String fieldName = ((EsRelationWithFilter) relation).getFieldName();
@@ -52,11 +54,12 @@ public class EsSourceExec extends LeafExec {
         }
     }
 
-    public EsSourceExec(Source source, EsIndex index, List<Attribute> attributes, QueryBuilder query) {
+    public EsSourceExec(Source source, EsIndex index, List<Attribute> attributes, QueryBuilder query, IndexMode indexMode) {
         super(source);
         this.index = index;
         this.attributes = attributes;
         this.query = query;
+        this.indexMode = indexMode;
     }
 
     public EsIndex index() {
@@ -65,6 +68,10 @@ public class EsSourceExec extends LeafExec {
 
     public QueryBuilder query() {
         return query;
+    }
+
+    public IndexMode indexMode() {
+        return indexMode;
     }
 
     @Override
@@ -78,7 +85,7 @@ public class EsSourceExec extends LeafExec {
 
     @Override
     protected NodeInfo<? extends PhysicalPlan> info() {
-        return NodeInfo.create(this, EsSourceExec::new, index, attributes, query);
+        return NodeInfo.create(this, EsSourceExec::new, index, attributes, query, indexMode);
     }
 
     @Override

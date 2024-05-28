@@ -9,12 +9,21 @@ package org.elasticsearch.xpack.esql.planner;
 
 import org.elasticsearch.common.lucene.BytesRefs;
 import org.elasticsearch.xpack.esql.EsqlIllegalArgumentException;
+import org.elasticsearch.xpack.esql.core.expression.function.FunctionRegistry;
+import org.elasticsearch.xpack.esql.core.plan.logical.Filter;
+import org.elasticsearch.xpack.esql.core.plan.logical.Limit;
+import org.elasticsearch.xpack.esql.core.plan.logical.LogicalPlan;
+import org.elasticsearch.xpack.esql.core.plan.logical.OrderBy;
+import org.elasticsearch.xpack.esql.core.plan.logical.UnaryPlan;
+import org.elasticsearch.xpack.esql.plan.logical.Aggregate;
 import org.elasticsearch.xpack.esql.plan.logical.Dissect;
 import org.elasticsearch.xpack.esql.plan.logical.Enrich;
+import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
 import org.elasticsearch.xpack.esql.plan.logical.EsRelationWithFilter;
 import org.elasticsearch.xpack.esql.plan.logical.Eval;
 import org.elasticsearch.xpack.esql.plan.logical.Grok;
 import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
+import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.Row;
 import org.elasticsearch.xpack.esql.plan.logical.TopN;
 import org.elasticsearch.xpack.esql.plan.logical.local.LocalRelation;
@@ -38,15 +47,6 @@ import org.elasticsearch.xpack.esql.plan.physical.ProjectExec;
 import org.elasticsearch.xpack.esql.plan.physical.RowExec;
 import org.elasticsearch.xpack.esql.plan.physical.ShowExec;
 import org.elasticsearch.xpack.esql.plan.physical.TopNExec;
-import org.elasticsearch.xpack.ql.expression.function.FunctionRegistry;
-import org.elasticsearch.xpack.ql.plan.logical.Aggregate;
-import org.elasticsearch.xpack.ql.plan.logical.EsRelation;
-import org.elasticsearch.xpack.ql.plan.logical.Filter;
-import org.elasticsearch.xpack.ql.plan.logical.Limit;
-import org.elasticsearch.xpack.ql.plan.logical.LogicalPlan;
-import org.elasticsearch.xpack.ql.plan.logical.OrderBy;
-import org.elasticsearch.xpack.ql.plan.logical.Project;
-import org.elasticsearch.xpack.ql.plan.logical.UnaryPlan;
 
 import static org.elasticsearch.xpack.esql.plan.physical.AggregateExec.Mode;
 import static org.elasticsearch.xpack.esql.plan.physical.AggregateExec.Mode.FINAL;
@@ -55,7 +55,7 @@ import static org.elasticsearch.xpack.esql.plan.physical.AggregateExec.Mode.PART
 public class Mapper {
 
     private final FunctionRegistry functionRegistry;
-    private final boolean localMode;
+    private final boolean localMode; // non-coordinator (data node) mode
 
     public Mapper(FunctionRegistry functionRegistry) {
         this.functionRegistry = functionRegistry;
