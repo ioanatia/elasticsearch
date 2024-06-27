@@ -29,6 +29,7 @@ import org.elasticsearch.xpack.core.common.time.TimeUtils;
 import org.elasticsearch.xpack.core.ml.MlConfigVersion;
 import org.elasticsearch.xpack.core.ml.inference.persistence.InferenceIndexConstants;
 import org.elasticsearch.xpack.core.ml.inference.trainedmodel.InferenceConfig;
+import org.elasticsearch.xpack.core.ml.inference.trainedmodel.LearningToRankConfig;
 import org.elasticsearch.xpack.core.ml.inference.trainedmodel.LenientlyParsedInferenceConfig;
 import org.elasticsearch.xpack.core.ml.inference.trainedmodel.LenientlyParsedTrainedModelLocation;
 import org.elasticsearch.xpack.core.ml.inference.trainedmodel.ModelPackageConfig;
@@ -977,6 +978,20 @@ public class TrainedModelConfig implements ToXContentObject, Writeable {
                     validationException
                 );
             }
+
+            if (input!= null && inferenceConfig instanceof LearningToRankConfig) {
+                var featureNames = ((LearningToRankConfig) inferenceConfig).getFeatureExtractorBuilders()
+                    .stream().map(builder -> builder.featureName());
+                var duplicateNames = featureNames.filter(input.getFieldNames()::contains).toList();
+
+                if (duplicateNames.isEmpty() == false) {
+                    validationException = addValidationError(
+                        "[input.field_names] and [inference_config.learning_to_rank.feature_extractors] contain duplicate names",
+                        validationException
+                    );
+                }
+            }
+
             if (forCreation) {
                 validationException = checkIllegalSetting(version, VERSION.getPreferredName(), validationException);
                 validationException = checkIllegalSetting(createdBy, CREATED_BY.getPreferredName(), validationException);
