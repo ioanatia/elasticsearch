@@ -1073,6 +1073,18 @@ public class EsqlBaseParserBaseListener implements EsqlBaseParserListener {
    *
    * <p>The default implementation does nothing.</p>
    */
+  @Override public void enterSearchExpressionBoost(EsqlBaseParser.SearchExpressionBoostContext ctx) { }
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation does nothing.</p>
+   */
+  @Override public void exitSearchExpressionBoost(EsqlBaseParser.SearchExpressionBoostContext ctx) { }
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation does nothing.</p>
+   */
   @Override public void enterSearchLogicalBinary(EsqlBaseParser.SearchLogicalBinaryContext ctx) { }
   /**
    * {@inheritDoc}

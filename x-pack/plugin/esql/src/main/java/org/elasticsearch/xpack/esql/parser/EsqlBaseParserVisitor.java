@@ -572,6 +572,12 @@ public interface EsqlBaseParserVisitor<T> extends ParseTreeVisitor<T> {
    */
   T visitSearchSortCommmand(EsqlBaseParser.SearchSortCommmandContext ctx);
   /**
+   * Visit a parse tree produced by {@link EsqlBaseParser#searchExpressionBoost}.
+   * @param ctx the parse tree
+   * @return the visitor result
+   */
+  T visitSearchExpressionBoost(EsqlBaseParser.SearchExpressionBoostContext ctx);
+  /**
    * Visit a parse tree produced by the {@code searchLogicalBinary}
    * labeled alternative in {@link EsqlBaseParser#searchQueryExpression}.
    * @param ctx the parse tree

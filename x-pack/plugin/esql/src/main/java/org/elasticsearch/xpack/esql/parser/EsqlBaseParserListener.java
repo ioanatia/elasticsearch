@@ -954,6 +954,16 @@ public interface EsqlBaseParserListener extends ParseTreeListener {
    */
   void exitSearchSortCommmand(EsqlBaseParser.SearchSortCommmandContext ctx);
   /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#searchExpressionBoost}.
+   * @param ctx the parse tree
+   */
+  void enterSearchExpressionBoost(EsqlBaseParser.SearchExpressionBoostContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#searchExpressionBoost}.
+   * @param ctx the parse tree
+   */
+  void exitSearchExpressionBoost(EsqlBaseParser.SearchExpressionBoostContext ctx);
+  /**
    * Enter a parse tree produced by the {@code searchLogicalBinary}
    * labeled alternative in {@link EsqlBaseParser#searchQueryExpression}.
    * @param ctx the parse tree

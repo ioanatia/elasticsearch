@@ -322,11 +322,15 @@ searchSortCommmand
     : sortCommand
     ;
 
+searchExpressionBoost
+    : SEARCH_EXPR_BOOST DECIMAL_LITERAL
+    ;
+
 searchQueryExpression
-    : NOT searchQueryExpression                                                     #searchLogicalNot
-    | valueExpression                                                               #searchBooleanDefault
-    | LP searchQueryExpression RP                                                   #searchParenthesizedExpression
-    | SEARCH_EXPR_MATCH LP singleField=qualifiedName COMMA queryString=string RP    #searchMatchQuery
-    | left=searchQueryExpression operator=AND right=searchQueryExpression           #searchLogicalBinary
-    | left=searchQueryExpression operator=OR right=searchQueryExpression            #searchLogicalBinary
+    : NOT searchQueryExpression                                                                          #searchLogicalNot
+    | valueExpression                                                                                    #searchBooleanDefault
+    | LP searchQueryExpression RP                                                                        #searchParenthesizedExpression
+    | SEARCH_EXPR_MATCH LP singleField=qualifiedName COMMA queryString=string RP searchExpressionBoost?  #searchMatchQuery
+    | left=searchQueryExpression operator=AND right=searchQueryExpression                                #searchLogicalBinary
+    | left=searchQueryExpression operator=OR right=searchQueryExpression                                 #searchLogicalBinary
     ;
