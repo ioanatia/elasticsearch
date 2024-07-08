@@ -262,8 +262,13 @@ public class LocalPhysicalPlanOptimizer extends ParameterizedRuleExecutor<Physic
                 List<Expression> pushable = new ArrayList<>();
                 List<Expression> nonPushable = new ArrayList<>();
                 for (Expression exp : splitAnd(filterExec.condition())) {
-                    (canPushToSource(exp, x -> hasIdenticalDelegate(x, ctx.searchStats())) ? pushable : nonPushable).add(exp);
+                    var canPushExp = canPushToSource(exp, x -> hasIdenticalDelegate(x, ctx.searchStats()));
+                    if (canPushExp == false && includesMatchExpression(exp)) {
+                        throw new VerificationException("Unsupported condition using MATCH");
+                    }
+                    (canPushExp ? pushable : nonPushable).add(exp);
                 }
+
                 if (pushable.size() > 0) { // update the executable with pushable conditions
                     Query queryDSL = TRANSLATOR_HANDLER.asQuery(Predicates.combineAnd(pushable));
                     QueryBuilder planQuery = queryDSL.asBuilder();
@@ -289,6 +294,23 @@ public class LocalPhysicalPlanOptimizer extends ParameterizedRuleExecutor<Physic
             }
 
             return plan;
+        }
+
+        public static boolean includesMatchExpression(Expression exp) {
+            if (exp instanceof BinaryComparison bc) {
+                return includesMatchExpression(bc.left()) || includesMatchExpression(bc.right());
+            } else if (exp instanceof InsensitiveBinaryComparison bc) {
+                return includesMatchExpression(bc.left()) || includesMatchExpression(bc.right());
+            } else if (exp instanceof BinaryLogic bl) {
+                return includesMatchExpression(bl.left()) || includesMatchExpression(bl.right());
+            } else if (exp instanceof In in) {
+                return includesMatchExpression(in.value());
+            } else if (exp instanceof Not not) {
+                return includesMatchExpression(not.field());
+            } else if (exp instanceof MatchQueryPredicate) {
+                return true;
+            }
+            return false;
         }
 
         public static boolean canPushToSource(Expression exp, Predicate<FieldAttribute> hasIdenticalDelegate) {

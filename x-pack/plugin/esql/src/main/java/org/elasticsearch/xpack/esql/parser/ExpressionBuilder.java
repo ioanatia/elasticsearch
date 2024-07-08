@@ -531,6 +531,17 @@ public abstract class ExpressionBuilder extends IdentifierBuilder {
                 args = singletonList(new Literal(source(ctx), "*", DataType.KEYWORD));
             }
         }
+        if ("match".equals(EsqlFunctionRegistry.normalizeName(name))) {
+            // should this be handled in the grammar? match is not technically a function, but a predicate?
+            // TODO: at least add some validation in place
+            return new MatchQueryPredicate(
+                source(ctx),
+                args.get(0),
+                args.get(1).fold().toString(),
+                null
+            );
+        }
+
         return new UnresolvedFunction(source(ctx), name, FunctionResolutionStrategy.DEFAULT, args);
     }
 
