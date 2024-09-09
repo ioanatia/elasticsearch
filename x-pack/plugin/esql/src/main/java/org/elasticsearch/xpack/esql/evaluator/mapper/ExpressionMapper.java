@@ -7,10 +7,14 @@
 
 package org.elasticsearch.xpack.esql.evaluator.mapper;
 
+import org.elasticsearch.compute.lucene.ShardContext;
 import org.elasticsearch.compute.operator.EvalOperator.ExpressionEvaluator;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.util.ReflectionUtils;
+import org.elasticsearch.xpack.esql.planner.EsPhysicalOperationProviders;
 import org.elasticsearch.xpack.esql.planner.Layout;
+
+import java.util.List;
 
 public abstract class ExpressionMapper<E extends Expression> {
     public final Class<E> typeToken;
@@ -19,5 +23,5 @@ public abstract class ExpressionMapper<E extends Expression> {
         typeToken = ReflectionUtils.detectSuperTypeForRuleLike(getClass());
     }
 
-    public abstract ExpressionEvaluator.Factory map(E expression, Layout layout);
+    public abstract ExpressionEvaluator.Factory map(E expression, Layout layout, List<EsPhysicalOperationProviders.ShardContext> shardContexts);
 }

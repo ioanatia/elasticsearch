@@ -12,13 +12,17 @@ import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.ByteRunAutomaton;
 import org.elasticsearch.common.TriFunction;
 import org.elasticsearch.common.lucene.BytesRefs;
+import org.elasticsearch.compute.lucene.ShardContext;
 import org.elasticsearch.compute.operator.EvalOperator.ExpressionEvaluator;
 import org.elasticsearch.xpack.esql.EsqlIllegalArgumentException;
 import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.core.type.DataType;
 import org.elasticsearch.xpack.esql.evaluator.mapper.ExpressionMapper;
 import org.elasticsearch.xpack.esql.expression.function.scalar.math.Cast;
+import org.elasticsearch.xpack.esql.planner.EsPhysicalOperationProviders;
 import org.elasticsearch.xpack.esql.planner.Layout;
+
+import java.util.List;
 
 import static org.elasticsearch.xpack.esql.evaluator.EvalMapper.toEvaluator;
 
@@ -28,12 +32,12 @@ public class InsensitiveEqualsMapper extends ExpressionMapper<InsensitiveEquals>
         InsensitiveEqualsEvaluator.Factory::new;
 
     @Override
-    public final ExpressionEvaluator.Factory map(InsensitiveEquals bc, Layout layout) {
+    public final ExpressionEvaluator.Factory map(InsensitiveEquals bc, Layout layout, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
         DataType leftType = bc.left().dataType();
         DataType rightType = bc.right().dataType();
 
-        var leftEval = toEvaluator(bc.left(), layout);
-        var rightEval = toEvaluator(bc.right(), layout);
+        var leftEval = toEvaluator(bc.left(), layout, shardContexts);
+        var rightEval = toEvaluator(bc.right(), layout, shardContexts);
         if (leftType == DataType.KEYWORD || leftType == DataType.TEXT) {
             if (bc.right().foldable() && DataType.isString(rightType)) {
                 BytesRef rightVal = BytesRefs.toBytesRef(bc.right().fold());
@@ -50,14 +54,14 @@ public class InsensitiveEqualsMapper extends ExpressionMapper<InsensitiveEquals>
         throw new EsqlIllegalArgumentException("resolved type for [" + bc + "] but didn't implement mapping");
     }
 
-    public static ExpressionEvaluator.Factory castToEvaluator(
-        InsensitiveEquals op,
-        Layout layout,
-        DataType required,
-        TriFunction<Source, ExpressionEvaluator.Factory, ExpressionEvaluator.Factory, ExpressionEvaluator.Factory> factory
-    ) {
-        var lhs = Cast.cast(op.source(), op.left().dataType(), required, toEvaluator(op.left(), layout));
-        var rhs = Cast.cast(op.source(), op.right().dataType(), required, toEvaluator(op.right(), layout));
-        return factory.apply(op.source(), lhs, rhs);
-    }
+//    public static ExpressionEvaluator.Factory castToEvaluator(
+//        InsensitiveEquals op,
+//        Layout layout,
+//        DataType required,
+//        TriFunction<Source, ExpressionEvaluator.Factory, ExpressionEvaluator.Factory, ExpressionEvaluator.Factory> factory
+//    ) {
+//        var lhs = Cast.cast(op.source(), op.left().dataType(), required, toEvaluator(op.left(), layout, null));
+//        var rhs = Cast.cast(op.source(), op.right().dataType(), required, toEvaluator(op.right(), layout, null));
+//        return factory.apply(op.source(), lhs, rhs);
+//    }
 }

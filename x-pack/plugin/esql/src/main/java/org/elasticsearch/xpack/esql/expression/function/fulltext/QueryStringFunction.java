@@ -11,6 +11,8 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.compute.operator.EvalOperator;
+import org.elasticsearch.index.query.QueryStringQueryBuilder;
+import org.elasticsearch.xpack.esql.LuceneQueryExpressionEvaluator;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.expression.Foldables;
 import org.elasticsearch.xpack.esql.core.querydsl.query.Query;
@@ -20,6 +22,7 @@ import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.expression.function.Example;
 import org.elasticsearch.xpack.esql.expression.function.FunctionInfo;
 import org.elasticsearch.xpack.esql.expression.function.Param;
+import org.elasticsearch.xpack.esql.planner.EsPhysicalOperationProviders;
 
 import java.io.IOException;
 import java.util.List;
@@ -78,5 +81,12 @@ public class QueryStringFunction extends FullTextFunction {
     @Override
     public EvalOperator.ExpressionEvaluator.Factory toEvaluator(Function<Expression, EvalOperator.ExpressionEvaluator.Factory> toEvaluator) {
         throw new UnsupportedOperationException("Evaluator not implemented in QueryStringFunction");
+    }
+
+    @Override
+    public EvalOperator.ExpressionEvaluator.Factory toEvaluator(Function<Expression, EvalOperator.ExpressionEvaluator.Factory> toEvaluator, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
+        var queryEvaluator = toEvaluator.apply(query());
+
+        return new LuceneQueryExpressionEvaluator.Factory(shardContexts,  queryEvaluator);
     }
 }

@@ -16,6 +16,7 @@ import org.elasticsearch.compute.data.BooleanVector;
 import org.elasticsearch.compute.data.ElementType;
 import org.elasticsearch.compute.data.Page;
 import org.elasticsearch.compute.data.Vector;
+import org.elasticsearch.compute.lucene.ShardContext;
 import org.elasticsearch.compute.operator.DriverContext;
 import org.elasticsearch.compute.operator.EvalOperator;
 import org.elasticsearch.compute.operator.EvalOperator.ExpressionEvaluator;
@@ -31,6 +32,7 @@ import org.elasticsearch.xpack.esql.core.expression.predicate.nulls.IsNull;
 import org.elasticsearch.xpack.esql.evaluator.mapper.EvaluatorMapper;
 import org.elasticsearch.xpack.esql.evaluator.mapper.ExpressionMapper;
 import org.elasticsearch.xpack.esql.expression.predicate.operator.comparison.InsensitiveEqualsMapper;
+import org.elasticsearch.xpack.esql.planner.EsPhysicalOperationProviders;
 import org.elasticsearch.xpack.esql.planner.Layout;
 
 import java.util.List;
@@ -50,13 +52,13 @@ public final class EvalMapper {
     private EvalMapper() {}
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public static ExpressionEvaluator.Factory toEvaluator(Expression exp, Layout layout) {
+    public static ExpressionEvaluator.Factory toEvaluator(Expression exp, Layout layout, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
         if (exp instanceof EvaluatorMapper m) {
-            return m.toEvaluator(e -> toEvaluator(e, layout));
+            return m.toEvaluator(e -> toEvaluator(e, layout, shardContexts), shardContexts);
         }
         for (ExpressionMapper em : MAPPERS) {
             if (em.typeToken.isInstance(exp)) {
-                return em.map(exp, layout);
+                return em.map(exp, layout, shardContexts);
             }
         }
         throw new QlIllegalArgumentException("Unsupported expression [{}]", exp);
@@ -64,9 +66,9 @@ public final class EvalMapper {
 
     static class BooleanLogic extends ExpressionMapper<BinaryLogic> {
         @Override
-        public ExpressionEvaluator.Factory map(BinaryLogic bc, Layout layout) {
-            var leftEval = toEvaluator(bc.left(), layout);
-            var rightEval = toEvaluator(bc.right(), layout);
+        public ExpressionEvaluator.Factory map(BinaryLogic bc, Layout layout, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
+            var leftEval = toEvaluator(bc.left(), layout, shardContexts);
+            var rightEval = toEvaluator(bc.right(), layout,  shardContexts);
             /**
              * Evaluator for the <href a="https://en.wikipedia.org/wiki/Three-valued_logic">three-valued boolean expressions</href>.
              * We can't generate these with the {@link Evaluator} annotation because that
@@ -142,8 +144,8 @@ public final class EvalMapper {
 
     static class Nots extends ExpressionMapper<Not> {
         @Override
-        public ExpressionEvaluator.Factory map(Not not, Layout layout) {
-            var expEval = toEvaluator(not.field(), layout);
+        public ExpressionEvaluator.Factory map(Not not, Layout layout, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
+            var expEval = toEvaluator(not.field(), layout, shardContexts);
             return dvrCtx -> new org.elasticsearch.xpack.esql.evaluator.predicate.operator.logical.NotEvaluator(
                 not.source(),
                 expEval.get(dvrCtx),
@@ -154,7 +156,7 @@ public final class EvalMapper {
 
     static class Attributes extends ExpressionMapper<Attribute> {
         @Override
-        public ExpressionEvaluator.Factory map(Attribute attr, Layout layout) {
+        public ExpressionEvaluator.Factory map(Attribute attr, Layout layout, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
             record Attribute(int channel) implements ExpressionEvaluator {
                 @Override
                 public Block eval(Page page) {
@@ -184,7 +186,7 @@ public final class EvalMapper {
     static class Literals extends ExpressionMapper<Literal> {
 
         @Override
-        public ExpressionEvaluator.Factory map(Literal lit, Layout layout) {
+        public ExpressionEvaluator.Factory map(Literal lit, Layout layout, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
             record LiteralsEvaluator(DriverContext context, Literal lit) implements ExpressionEvaluator {
                 @Override
                 public Block eval(Page page) {
@@ -236,8 +238,8 @@ public final class EvalMapper {
     static class IsNulls extends ExpressionMapper<IsNull> {
 
         @Override
-        public ExpressionEvaluator.Factory map(IsNull isNull, Layout layout) {
-            var field = toEvaluator(isNull.field(), layout);
+        public ExpressionEvaluator.Factory map(IsNull isNull, Layout layout, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
+            var field = toEvaluator(isNull.field(), layout, shardContexts);
             return new IsNullEvaluatorFactory(field);
         }
 
@@ -284,8 +286,8 @@ public final class EvalMapper {
     static class IsNotNulls extends ExpressionMapper<IsNotNull> {
 
         @Override
-        public ExpressionEvaluator.Factory map(IsNotNull isNotNull, Layout layout) {
-            return new IsNotNullEvaluatorFactory(toEvaluator(isNotNull.field(), layout));
+        public ExpressionEvaluator.Factory map(IsNotNull isNotNull, Layout layout, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
+            return new IsNotNullEvaluatorFactory(toEvaluator(isNotNull.field(), layout, shardContexts));
         }
 
         record IsNotNullEvaluatorFactory(EvalOperator.ExpressionEvaluator.Factory field) implements ExpressionEvaluator.Factory {

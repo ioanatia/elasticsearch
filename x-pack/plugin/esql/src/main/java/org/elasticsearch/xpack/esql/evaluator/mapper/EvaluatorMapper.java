@@ -12,8 +12,10 @@ import org.elasticsearch.compute.data.Page;
 import org.elasticsearch.compute.operator.DriverContext;
 import org.elasticsearch.compute.operator.EvalOperator.ExpressionEvaluator;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
+import org.elasticsearch.xpack.esql.planner.EsPhysicalOperationProviders;
 import org.elasticsearch.xpack.esql.planner.Layout;
 
+import java.util.List;
 import java.util.function.Function;
 
 import static org.elasticsearch.compute.data.BlockUtils.fromArrayRow;
@@ -34,7 +36,7 @@ public interface EvaluatorMapper {
      * Note for Callers:
      * If you are attempting to call this method, and you have an
      * {@link Expression} and a {@link org.elasticsearch.xpack.esql.planner.Layout},
-     * you likely want to call {@link org.elasticsearch.xpack.esql.evaluator.EvalMapper#toEvaluator(Expression, Layout)}
+     * you likely want to call {@link org.elasticsearch.xpack.esql.evaluator.EvalMapper#toEvaluator(Expression, Layout, List)}
      * instead.  On the other hand, if you already have something that
      * looks like the parameter for this method, you should call this method
      * with that function.
@@ -51,6 +53,10 @@ public interface EvaluatorMapper {
      * </p>
      */
     ExpressionEvaluator.Factory toEvaluator(Function<Expression, ExpressionEvaluator.Factory> toEvaluator);
+
+    default ExpressionEvaluator.Factory toEvaluator(Function<Expression, ExpressionEvaluator.Factory> a, List<EsPhysicalOperationProviders.ShardContext> shardContexts) {
+        return toEvaluator(a);
+    }
 
     /**
      * Fold using {@link #toEvaluator} so you don't need a "by hand"

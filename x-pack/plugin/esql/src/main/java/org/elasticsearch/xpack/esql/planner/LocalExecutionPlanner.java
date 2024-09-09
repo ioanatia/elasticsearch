@@ -407,7 +407,7 @@ public class LocalExecutionPlanner {
         PhysicalOperation source = plan(eval.child(), context);
 
         for (Alias field : eval.fields()) {
-            var evaluatorSupplier = EvalMapper.toEvaluator(field.child(), source.layout);
+            var evaluatorSupplier = EvalMapper.toEvaluator(field.child(), source.layout, null);
             Layout.Builder layout = source.layout.builder();
             layout.append(field.toAttribute());
             source = source.with(new EvalOperatorFactory(evaluatorSupplier), layout.build());
@@ -428,7 +428,7 @@ public class LocalExecutionPlanner {
         source = source.with(
             new StringExtractOperator.StringExtractOperatorFactory(
                 patternNames,
-                EvalMapper.toEvaluator(expr, layout),
+                EvalMapper.toEvaluator(expr, layout, null),
                 () -> (input) -> dissect.parser().parser().parse(input)
             ),
             layout
@@ -460,7 +460,7 @@ public class LocalExecutionPlanner {
         source = source.with(
             new ColumnExtractOperator.Factory(
                 types,
-                EvalMapper.toEvaluator(grok.inputExpression(), layout),
+                EvalMapper.toEvaluator(grok.inputExpression(), layout, null),
                 () -> new GrokEvaluatorExtracter(grok.pattern().grok(), grok.pattern().pattern(), fieldToPos, fieldToType)
             ),
             layout
@@ -556,8 +556,12 @@ public class LocalExecutionPlanner {
         return source.with(new ProjectOperatorFactory(projection), layout);
     }
 
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     private ExpressionEvaluator.Factory toEvaluator(Expression exp, Layout layout) {
-        return EvalMapper.toEvaluator(exp, layout);
+
+        var shardContexts = (physicalOperationProviders instanceof EsPhysicalOperationProviders) ? ((EsPhysicalOperationProviders) physicalOperationProviders).shardContexts() : null;
+
+        return EvalMapper.toEvaluator(exp, layout, shardContexts);
     }
 
     private PhysicalOperation planRow(RowExec row, LocalExecutionPlannerContext context) {
