@@ -35,7 +35,7 @@ public class LocateTests extends AbstractScalarFunctionTestCase {
         this.testCase = testCaseSupplier.get();
     }
 
-    private static final DataType[] STRING_TYPES = new DataType[] { DataType.KEYWORD, DataType.TEXT };
+    private static final DataType[] STRING_TYPES = new DataType[] { DataType.KEYWORD, DataType.TEXT, DataType.SEMANTIC_TEXT };
 
     @ParametersFactory
     public static Iterable<Object[]> parameters() {
