@@ -65,6 +65,7 @@ import org.elasticsearch.xpack.esql.plan.logical.Drop;
 import org.elasticsearch.xpack.esql.plan.logical.Enrich;
 import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
 import org.elasticsearch.xpack.esql.plan.logical.Eval;
+import org.elasticsearch.xpack.esql.plan.logical.Filter;
 import org.elasticsearch.xpack.esql.plan.logical.Keep;
 import org.elasticsearch.xpack.esql.plan.logical.Limit;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
@@ -72,6 +73,7 @@ import org.elasticsearch.xpack.esql.plan.logical.Lookup;
 import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
 import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.Rename;
+import org.elasticsearch.xpack.esql.plan.logical.Rerank;
 import org.elasticsearch.xpack.esql.plan.logical.Stats;
 import org.elasticsearch.xpack.esql.plan.logical.UnresolvedRelation;
 import org.elasticsearch.xpack.esql.plan.logical.local.EsqlProject;
@@ -144,6 +146,7 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
             new ResolveRefs(),
             new ResolveUnionTypes(),  // Must be after ResolveRefs, so union types can be found
             new ImplicitCasting()
+            // new ResolveRerank()
         );
         var finish = new Batch<>("Finish Analysis", Limiter.ONCE, new AddImplicitLimit(), new UnionTypesCleanup());
         rules = List.of(init, resolution, finish);
@@ -1214,7 +1217,7 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
                 if (missing.isEmpty() == false) {
                     List<Attribute> newOutput = new ArrayList<>(esr.output());
                     newOutput.addAll(missing);
-                    return new EsRelation(esr.source(), esr.index(), newOutput, esr.indexMode(), esr.frozen());
+                    return new EsRelation(esr.source(), esr.index(), newOutput, esr.indexMode(), esr.frozen(), esr.rankDocs());
                 }
                 return esr;
             });
@@ -1344,6 +1347,26 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
             }
 
             return newOutput.size() == output.size() ? plan : new Project(Source.EMPTY, plan, newOutput);
+        }
+    }
+
+    private static class ResolveRerank extends ParameterizedAnalyzerRule<Rerank, AnalyzerContext> {
+
+        @Override
+        protected LogicalPlan rule(Rerank plan, AnalyzerContext context) {
+            if (plan.expressionsResolved()) {
+                return plan;
+            }
+
+            ResolveFunctions functionResolver = new ResolveFunctions();
+
+            return new Rerank(
+                plan.source(),
+                plan.child(),
+                plan.limit(),
+                (Filter) functionResolver.rule(plan.firstQuery(), context),
+                (Filter) functionResolver.rule(plan.secondQuery(), context)
+            );
         }
     }
 }

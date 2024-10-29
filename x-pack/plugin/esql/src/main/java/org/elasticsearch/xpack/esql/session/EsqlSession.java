@@ -13,10 +13,13 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.regex.Regex;
+import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.set.Sets;
+import org.elasticsearch.compute.data.Page;
 import org.elasticsearch.compute.operator.DriverProfile;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.IndexMode;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.indices.IndicesExpressionGrouper;
@@ -99,6 +102,8 @@ public class EsqlSession {
     private final PlanningMetrics planningMetrics;
     private final IndicesExpressionGrouper indicesExpressionGrouper;
 
+    private Analyzer analyzer;
+
     public EsqlSession(
         String sessionId,
         Configuration configuration,
@@ -144,7 +149,7 @@ public class EsqlSession {
             parse(request.query(), request.params()),
             executionInfo,
             listener.delegateFailureAndWrap(
-                (next, analyzedPlan) -> executeOptimizedPlan(request, executionInfo, runPhase, optimizedPlan(analyzedPlan), next)
+                (next, analyzedPlan) -> executeAnalyzedPlan(request, executionInfo, runPhase, analyzedPlan, next)
             )
         );
     }
@@ -153,19 +158,19 @@ public class EsqlSession {
      * Execute an analyzed plan. Most code should prefer calling {@link #execute} but
      * this is public for testing. See {@link Phased} for the sequence of operations.
      */
-    public void executeOptimizedPlan(
+    public void executeAnalyzedPlan(
         EsqlQueryRequest request,
         EsqlExecutionInfo executionInfo,
         BiConsumer<PhysicalPlan, ActionListener<Result>> runPhase,
-        LogicalPlan optimizedPlan,
+        LogicalPlan analyzedPlan,
         ActionListener<Result> listener
     ) {
-        LogicalPlan firstPhase = Phased.extractFirstPhase(optimizedPlan);
-        if (firstPhase == null) {
+        List<LogicalPlan> firstPhases = Phased.extractFirstPhases(analyzedPlan);
+        if (firstPhases == null) {
             updateExecutionInfoAtEndOfPlanning(executionInfo);
-            runPhase.accept(logicalPlanToPhysicalPlan(optimizedPlan, request), listener);
+            runPhase.accept(logicalPlanToPhysicalPlan(optimizedPlan(analyzedPlan), request), listener);
         } else {
-            executePhased(new ArrayList<>(), optimizedPlan, request, executionInfo, firstPhase, runPhase, listener);
+            executePhased(new ArrayList<>(), analyzedPlan, request, executionInfo, firstPhases, runPhase, listener);
         }
     }
 
@@ -174,29 +179,135 @@ public class EsqlSession {
         LogicalPlan mainPlan,
         EsqlQueryRequest request,
         EsqlExecutionInfo executionInfo,
-        LogicalPlan firstPhase,
+        List<LogicalPlan> firstPhases,
         BiConsumer<PhysicalPlan, ActionListener<Result>> runPhase,
         ActionListener<Result> listener
     ) {
-        PhysicalPlan physicalPlan = logicalPlanToPhysicalPlan(optimizedPlan(firstPhase), request);
-        runPhase.accept(physicalPlan, listener.delegateFailureAndWrap((next, result) -> {
-            try {
-                profileAccumulator.addAll(result.profiles());
-                LogicalPlan newMainPlan = optimizedPlan(Phased.applyResultsFromFirstPhase(mainPlan, physicalPlan.output(), result.pages()));
-                LogicalPlan newFirstPhase = Phased.extractFirstPhase(newMainPlan);
-                if (newFirstPhase == null) {
-                    PhysicalPlan finalPhysicalPlan = logicalPlanToPhysicalPlan(newMainPlan, request);
-                    runPhase.accept(finalPhysicalPlan, next.delegateFailureAndWrap((finalListener, finalResult) -> {
-                        profileAccumulator.addAll(finalResult.profiles());
-                        finalListener.onResponse(new Result(finalResult.schema(), finalResult.pages(), profileAccumulator, executionInfo));
-                    }));
-                } else {
-                    executePhased(profileAccumulator, newMainPlan, request, executionInfo, newFirstPhase, runPhase, next);
+        // this was the initial approach - but we cannot run multiple queries async because ExchangeService expects a single sink per
+        // session
+        // final Map<Integer, Tuple<List<Attribute>, Result>> phaseResults = ConcurrentCollections.newConcurrentMap();
+        //
+        // GroupedActionListener<Result> groupedActionListener = new GroupedActionListener<Result>(firstPhases.size(), new
+        // ActionListener<Collection<Result>>() {
+        // @Override
+        // public void onResponse(Collection<Result> results) {
+        // try {
+        // List<Tuple<List<Attribute>, List<Page>>> pagesResults = new ArrayList<>();
+        // for (Tuple<List<Attribute>, Result> phaseResult : phaseResults.values()) {
+        // profileAccumulator.addAll(phaseResult.v2().profiles());
+        // pagesResults.add(new Tuple<>(phaseResult.v1(), phaseResult.v2().pages()));
+        // }
+        //
+        // LogicalPlan newMainPlan = analyzedAndOptimizedPlan(Phased.applyResultsFromFirstPhases(mainPlan, pagesResults));
+        // List<LogicalPlan> newFirstPhases = Phased.extractFirstPhases(newMainPlan);
+        // if (newFirstPhases == null) {
+        // PhysicalPlan finalPhysicalPlan = logicalPlanToPhysicalPlan(newMainPlan, request);
+        // runPhase.accept(finalPhysicalPlan, listener.delegateFailureAndWrap((finalListener, finalResult) -> {
+        // profileAccumulator.addAll(finalResult.profiles());
+        // finalListener.onResponse(new Result(finalResult.schema(), finalResult.pages(), profileAccumulator, executionInfo));
+        // }));
+        // } else {
+        // executePhased(profileAccumulator, newMainPlan, request, executionInfo, newFirstPhases, runPhase, listener);
+        // }
+        // } finally {
+        // for (Result result : results) {
+        // Releasables.closeExpectNoException(Releasables.wrap(Iterators.map(result.pages().iterator(), p -> p::releaseBlocks)));
+        // }
+        // }
+        // }
+        //
+        // @Override
+        // public void onFailure(Exception e) {
+        // try {
+        // listener.onFailure(e);
+        // } finally {
+        // for(Tuple<List<Attribute>, Result> phaseResult : phaseResults.values()) {
+        // Releasables.closeExpectNoException(Releasables.wrap(Iterators.map(phaseResult.v2().pages().iterator(), p -> p::releaseBlocks)));
+        // }
+        // }
+        // }
+        // });
+        //
+        // Integer counter = 0;
+        // for(LogicalPlan firstPhase : firstPhases) {
+        // PhysicalPlan physicalPlan = logicalPlanToPhysicalPlan(analyzedAndOptimizedPlan(firstPhase), request);
+        // Integer copyCounter = counter;
+        // runPhase.accept(physicalPlan, groupedActionListener.delegateFailureAndWrap((next, result) -> {
+        // phaseResults.put(copyCounter, new Tuple<>(physicalPlan.output(), result));
+        // next.onResponse(result);
+        // }));
+        // counter += 1;
+        // }
+        final Map<Integer, Tuple<List<Attribute>, Result>> phaseResults = ConcurrentCollections.newConcurrentMap();
+
+        ActionListener<Result> actionListener = new ActionListener<Result>() {
+            @Override
+            public void onResponse(Result result) {
+                try {
+                    phaseResults.put(
+                        firstPhases.size() - 1,
+                        new Tuple<>(logicalPlanToPhysicalPlan(analyzedAndOptimizedPlan(firstPhases.getLast()), request).output(), result)
+                    );
+
+                    List<Tuple<List<Attribute>, List<Page>>> pagesResults = new ArrayList<>();
+                    for (Tuple<List<Attribute>, Result> phaseResult : phaseResults.values()) {
+                        profileAccumulator.addAll(phaseResult.v2().profiles());
+                        pagesResults.add(new Tuple<>(phaseResult.v1(), phaseResult.v2().pages()));
+                    }
+
+                    LogicalPlan newMainPlan = analyzedAndOptimizedPlan(Phased.applyResultsFromFirstPhases(mainPlan, pagesResults));
+                    List<LogicalPlan> newFirstPhases = Phased.extractFirstPhases(newMainPlan);
+                    if (newFirstPhases == null) {
+                        PhysicalPlan finalPhysicalPlan = logicalPlanToPhysicalPlan(newMainPlan, request);
+                        runPhase.accept(finalPhysicalPlan, listener.delegateFailureAndWrap((finalListener, finalResult) -> {
+                            profileAccumulator.addAll(finalResult.profiles());
+                            finalListener.onResponse(
+                                new Result(finalResult.schema(), finalResult.pages(), profileAccumulator, executionInfo)
+                            );
+                        }));
+                    } else {
+                        executePhased(profileAccumulator, newMainPlan, request, executionInfo, newFirstPhases, runPhase, listener);
+                    }
+                } finally {
+                    for (Tuple<List<Attribute>, Result> phaseResult : phaseResults.values()) {
+                        Releasables.closeExpectNoException(
+                            Releasables.wrap(Iterators.map(phaseResult.v2().pages().iterator(), p -> p::releaseBlocks))
+                        );
+                    }
                 }
-            } finally {
-                Releasables.closeExpectNoException(Releasables.wrap(Iterators.map(result.pages().iterator(), p -> p::releaseBlocks)));
             }
-        }));
+
+            @Override
+            public void onFailure(Exception e) {
+                try {
+                    listener.onFailure(e);
+                } finally {
+                    for (Tuple<List<Attribute>, Result> phaseResult : phaseResults.values()) {
+                        Releasables.closeExpectNoException(
+                            Releasables.wrap(Iterators.map(phaseResult.v2().pages().iterator(), p -> p::releaseBlocks))
+                        );
+                    }
+                }
+            }
+        };
+
+        Integer counter = -1;
+        PhysicalPlan lastPhysicalPlan = null;
+        for (LogicalPlan firstPhase : firstPhases) {
+            PhysicalPlan physicalPlan = logicalPlanToPhysicalPlan(analyzedAndOptimizedPlan(firstPhase), request);
+            Integer copyCounter = counter;
+            PhysicalPlan copyLastPhysicalPlan = lastPhysicalPlan;
+            actionListener = actionListener.delegateFailureAndWrap((next, result) -> {
+                if (copyLastPhysicalPlan != null) {
+                    phaseResults.put(copyCounter, new Tuple<>(copyLastPhysicalPlan.output(), result));
+                }
+                runPhase.accept(physicalPlan, next);
+            });
+            counter += 1;
+            lastPhysicalPlan = physicalPlan;
+        }
+
+        runPhase.accept(lastPhysicalPlan, actionListener);
     }
 
     private LogicalPlan parse(String query, QueryParams params) {
@@ -213,12 +324,20 @@ public class EsqlSession {
 
         preAnalyze(parsed, executionInfo, (indices, policies) -> {
             planningMetrics.gatherPreAnalysisMetrics(parsed);
-            Analyzer analyzer = new Analyzer(new AnalyzerContext(configuration, functionRegistry, indices, policies), verifier);
+            setAnalyzer(new AnalyzerContext(configuration, functionRegistry, indices, policies));
             var plan = analyzer.analyze(parsed);
             plan.setAnalyzed();
             LOGGER.debug("Analyzed plan:\n{}", plan);
             return plan;
         }, listener);
+    }
+
+    private Analyzer analyzer() {
+        return analyzer;
+    }
+
+    private void setAnalyzer(AnalyzerContext context) {
+        this.analyzer = new Analyzer(context, verifier);
     }
 
     private <T> void preAnalyze(
@@ -429,6 +548,12 @@ public class EsqlSession {
         var plan = logicalPlanOptimizer.optimize(logicalPlan);
         LOGGER.debug("Optimized logicalPlan plan:\n{}", plan);
         return plan;
+    }
+
+    public LogicalPlan analyzedAndOptimizedPlan(LogicalPlan logicalPlan) {
+        logicalPlan.forEachUp(LogicalPlan::setPreAnalyzed);
+        LogicalPlan analyzedPlan = analyzer.analyze(logicalPlan);
+        return logicalPlanOptimizer.optimize(analyzedPlan);
     }
 
     public PhysicalPlan physicalPlan(LogicalPlan optimizedPlan) {

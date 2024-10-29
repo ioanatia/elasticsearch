@@ -16,6 +16,7 @@ import org.elasticsearch.compute.data.Block;
 import org.elasticsearch.compute.data.BlockUtils;
 import org.elasticsearch.compute.data.Page;
 import org.elasticsearch.core.Releasables;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.xpack.esql.core.capabilities.Resolvables;
 import org.elasticsearch.xpack.esql.core.expression.Alias;
 import org.elasticsearch.xpack.esql.core.expression.Attribute;
@@ -168,7 +169,9 @@ public class InlineStats extends UnaryPlan implements NamedWriteable, Phased, St
     }
 
     @Override
-    public LogicalPlan nextPhase(List<Attribute> schema, List<Page> firstPhaseResult) {
+    public LogicalPlan nextPhase(List<Tuple<List<Attribute>, List<Page>>> firstPhasesResults) {
+        List<Attribute> schema = firstPhasesResults.getFirst().v1();
+        List<Page> firstPhaseResult = firstPhasesResults.getFirst().v2();
         if (equalsAndSemanticEquals(firstPhase().output(), schema) == false) {
             throw new IllegalStateException("Unexpected first phase outputs: " + firstPhase().output() + " vs " + schema);
         }

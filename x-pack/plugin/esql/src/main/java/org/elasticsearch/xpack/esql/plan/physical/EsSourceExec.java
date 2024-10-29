@@ -11,7 +11,11 @@ import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.IndexMode;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.ConstantScoreQueryBuilder;
+import org.elasticsearch.index.query.IdsQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.xpack.esql.core.expression.Attribute;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
 import org.elasticsearch.xpack.esql.core.tree.NodeUtils;
@@ -19,8 +23,10 @@ import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.index.EsIndex;
 import org.elasticsearch.xpack.esql.io.stream.PlanStreamInput;
 import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
+import org.elasticsearch.xpack.esql.plan.logical.RankDoc;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -37,7 +43,7 @@ public class EsSourceExec extends LeafExec {
     private final IndexMode indexMode;
 
     public EsSourceExec(EsRelation relation) {
-        this(relation.source(), relation.index(), relation.output(), null, relation.indexMode());
+        this(relation.source(), relation.index(), relation.output(), rankQuery(relation.rankDocs()), relation.indexMode());
     }
 
     public EsSourceExec(Source source, EsIndex index, List<Attribute> attributes, QueryBuilder query, IndexMode indexMode) {
@@ -119,5 +125,24 @@ public class EsSourceExec extends LeafExec {
     @Override
     public String nodeString() {
         return nodeName() + "[" + index + "]" + NodeUtils.limitedToString(attributes);
+    }
+
+    private static QueryBuilder rankQuery(List<RankDoc> rankDocs) {
+        if (rankDocs == null) {
+            return null;
+        }
+
+        List<QueryBuilder> queryBuilders = new ArrayList<>();
+
+        BoolQueryBuilder rankQuery = new BoolQueryBuilder();
+        // this really should be a RankDocsQueryBuilder - but we don't have access to the ids/shardindex for now
+        for (RankDoc rankDoc : rankDocs) {
+            QueryBuilder idQuery = new IdsQueryBuilder().addIds(rankDoc.id);
+            QueryBuilder indexQuery = new TermQueryBuilder("_index", rankDoc.index);
+            QueryBuilder docQuery = new ConstantScoreQueryBuilder(new BoolQueryBuilder().must(idQuery).must(indexQuery));
+            docQuery.boost(rankDoc.rank);
+            rankQuery.should(docQuery.boost(rankDocs.size() - rankDoc.rank));
+        }
+        return rankQuery;
     }
 }

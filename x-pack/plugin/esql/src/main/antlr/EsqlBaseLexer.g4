@@ -73,6 +73,7 @@ SHOW : 'show'                 -> pushMode(SHOW_MODE);
 SORT : 'sort'                 -> pushMode(EXPRESSION_MODE);
 STATS : 'stats'               -> pushMode(EXPRESSION_MODE);
 WHERE : 'where'               -> pushMode(EXPRESSION_MODE);
+RERANK: 'rerank'              -> pushMode(EXPRESSION_MODE);
 //
 // in development
 //
@@ -210,6 +211,10 @@ PERCENT : '%';
 
 MATCH : 'match';
 NESTED_WHERE : WHERE -> type(WHERE);
+
+// for now we hardcode these
+RRF : 'rrf';
+TOP : 'top';
 
 NAMED_OR_POSITIONAL_PARAM
     : PARAM (LETTER | UNDERSCORE) UNQUOTED_ID_BODY*

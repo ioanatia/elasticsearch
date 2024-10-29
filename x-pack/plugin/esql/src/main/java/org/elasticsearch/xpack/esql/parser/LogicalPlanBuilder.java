@@ -51,6 +51,7 @@ import org.elasticsearch.xpack.esql.plan.logical.Lookup;
 import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
 import org.elasticsearch.xpack.esql.plan.logical.OrderBy;
 import org.elasticsearch.xpack.esql.plan.logical.Rename;
+import org.elasticsearch.xpack.esql.plan.logical.Rerank;
 import org.elasticsearch.xpack.esql.plan.logical.Row;
 import org.elasticsearch.xpack.esql.plan.logical.UnresolvedRelation;
 import org.elasticsearch.xpack.esql.plan.logical.show.ShowInfo;
@@ -520,4 +521,24 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
     }
 
     interface PlanFactory extends Function<LogicalPlan, LogicalPlan> {}
+
+    @Override
+    public PlanFactory visitRerankCommand(EsqlBaseParser.RerankCommandContext ctx) {
+        PlanFactory firstQuery = visitRerankQuery(ctx.firstQuery);
+        PlanFactory secondQuery = visitRerankQuery(ctx.secondQuery);
+        Integer limit = stringToInt(ctx.limit.INTEGER_LITERAL().getText());
+
+        return input -> new Rerank(
+            source(ctx),
+            input,
+            new Literal(source(ctx), limit, DataType.INTEGER),
+            (Filter) firstQuery.apply(input),
+            (Filter) secondQuery.apply(input)
+        );
+    }
+
+    @Override
+    public PlanFactory visitRerankQuery(EsqlBaseParser.RerankQueryContext ctx) {
+        return visitWhereCommand(ctx.rerankQueryCommand().whereCommand());
+    }
 }

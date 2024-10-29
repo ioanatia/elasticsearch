@@ -941,4 +941,34 @@ public interface EsqlBaseParserListener extends ParseTreeListener {
    * @param ctx the parse tree
    */
   void exitInlinestatsCommand(EsqlBaseParser.InlinestatsCommandContext ctx);
+  /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#rerankCommand}.
+   * @param ctx the parse tree
+   */
+  void enterRerankCommand(EsqlBaseParser.RerankCommandContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#rerankCommand}.
+   * @param ctx the parse tree
+   */
+  void exitRerankCommand(EsqlBaseParser.RerankCommandContext ctx);
+  /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#rerankQuery}.
+   * @param ctx the parse tree
+   */
+  void enterRerankQuery(EsqlBaseParser.RerankQueryContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#rerankQuery}.
+   * @param ctx the parse tree
+   */
+  void exitRerankQuery(EsqlBaseParser.RerankQueryContext ctx);
+  /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#rerankQueryCommand}.
+   * @param ctx the parse tree
+   */
+  void enterRerankQueryCommand(EsqlBaseParser.RerankQueryCommandContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#rerankQueryCommand}.
+   * @param ctx the parse tree
+   */
+  void exitRerankQueryCommand(EsqlBaseParser.RerankQueryCommandContext ctx);
 }

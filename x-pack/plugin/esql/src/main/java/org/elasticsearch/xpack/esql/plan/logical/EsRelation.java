@@ -40,6 +40,8 @@ public class EsRelation extends LeafPlan {
     private final boolean frozen;
     private final IndexMode indexMode;
 
+    private final List<RankDoc> rankDocs;
+
     public EsRelation(Source source, EsIndex index, IndexMode indexMode, boolean frozen) {
         this(source, index, flatten(source, index.mapping()), indexMode, frozen);
     }
@@ -49,11 +51,23 @@ public class EsRelation extends LeafPlan {
     }
 
     public EsRelation(Source source, EsIndex index, List<Attribute> attributes, IndexMode indexMode, boolean frozen) {
+        this(source, index, attributes, indexMode, frozen, null);
+    }
+
+    public EsRelation(
+        Source source,
+        EsIndex index,
+        List<Attribute> attributes,
+        IndexMode indexMode,
+        boolean frozen,
+        List<RankDoc> rankDocs
+    ) {
         super(source);
         this.index = index;
         this.attrs = attributes;
         this.indexMode = indexMode;
         this.frozen = frozen;
+        this.rankDocs = rankDocs;
     }
 
     private static EsRelation readFrom(StreamInput in) throws IOException {
@@ -68,7 +82,8 @@ public class EsRelation extends LeafPlan {
         }
         IndexMode indexMode = readIndexMode(in);
         boolean frozen = in.readBoolean();
-        return new EsRelation(source, esIndex, attributes, indexMode, frozen);
+        List<RankDoc> rankDocs = in.readNamedWriteableCollectionAsList(RankDoc.class);
+        return new EsRelation(source, esIndex, attributes, indexMode, frozen, rankDocs);
     }
 
     @Override
@@ -84,6 +99,7 @@ public class EsRelation extends LeafPlan {
         }
         writeIndexMode(out, indexMode());
         out.writeBoolean(frozen());
+        out.writeNamedWriteableCollection(rankDocs);
     }
 
     private static boolean supportingEsSourceOptions(TransportVersion version) {
@@ -136,6 +152,10 @@ public class EsRelation extends LeafPlan {
         return frozen;
     }
 
+    public List<RankDoc> rankDocs() {
+        return rankDocs;
+    }
+
     public IndexMode indexMode() {
         return indexMode;
     }
@@ -176,7 +196,8 @@ public class EsRelation extends LeafPlan {
         return Objects.equals(index, other.index)
             && indexMode == other.indexMode()
             && frozen == other.frozen
-            && Objects.equals(attrs, other.attrs);
+            && Objects.equals(attrs, other.attrs)
+            && Objects.equals(rankDocs, other.rankDocs);
     }
 
     @Override

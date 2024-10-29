@@ -54,6 +54,7 @@ processingCommand
     // in development
     | {this.isDevVersion()}? inlinestatsCommand
     | {this.isDevVersion()}? lookupCommand
+    | rerankCommand
     ;
 
 whereCommand
@@ -323,4 +324,17 @@ lookupCommand
 
 inlinestatsCommand
     : DEV_INLINESTATS stats=aggFields (BY grouping=fields)?
+    ;
+
+rerankCommand
+    : RERANK TOP limit=integerValue RRF firstQuery=rerankQuery secondQuery=rerankQuery
+    ;
+
+rerankQuery
+    : OPENING_BRACKET rerankQueryCommand CLOSING_BRACKET
+    ;
+
+// add more commands here?
+rerankQueryCommand
+    : whereCommand
     ;

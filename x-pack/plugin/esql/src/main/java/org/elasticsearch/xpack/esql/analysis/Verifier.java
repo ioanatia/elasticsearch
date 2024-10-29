@@ -771,16 +771,16 @@ public class Verifier {
     }
 
     private static void checkFullTextFunctionInDisjunction(Set<Failure> failures, Or or, Expression left) {
-        left.forEachDown(FullTextFunction.class, ftf -> {
-            failures.add(
-                fail(
-                    or,
-                    "Invalid condition [{}]. Function {} can't be used as part of an or condition",
-                    or.sourceText(),
-                    ftf.functionName()
-                )
-            );
-        });
+        // left.forEachDown(FullTextFunction.class, ftf -> {
+        // failures.add(
+        // fail(
+        // or,
+        // "Invalid condition [{}]. Function {} can't be used as part of an or condition",
+        // or.sourceText(),
+        // ftf.functionName()
+        // )
+        // );
+        // });
     }
 
     private static void checkFullTextFunctionsParents(Expression condition, Set<Failure> failures) {
