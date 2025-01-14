@@ -55,6 +55,7 @@ processingCommand
     | {this.isDevVersion()}? inlinestatsCommand
     | {this.isDevVersion()}? lookupCommand
     | {this.isDevVersion()}? joinCommand
+    | {this.isDevVersion()}? forkCommand
     ;
 
 whereCommand
@@ -329,4 +330,18 @@ joinCondition
 
 joinPredicate
     : valueExpression
+    ;
+
+forkCommand
+    : DEV_FORK firstQuery=subQuery COMMA secondQuery=subQuery
+    ;
+subQuery
+    : OPENING_BRACKET subQueryCommand CLOSING_BRACKET
+    ;
+subQueryCommand
+    : whereCommand (PIPE subQueryTailCommand)?
+    ;
+subQueryTailCommand
+    : sortCommand
+    | limitCommand
     ;

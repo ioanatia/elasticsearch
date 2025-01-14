@@ -70,10 +70,12 @@ import org.elasticsearch.xpack.esql.plan.logical.Drop;
 import org.elasticsearch.xpack.esql.plan.logical.Enrich;
 import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
 import org.elasticsearch.xpack.esql.plan.logical.Eval;
+import org.elasticsearch.xpack.esql.plan.logical.Fork;
 import org.elasticsearch.xpack.esql.plan.logical.Keep;
 import org.elasticsearch.xpack.esql.plan.logical.Limit;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Lookup;
+import org.elasticsearch.xpack.esql.plan.logical.Merge;
 import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
 import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.Rename;
@@ -501,6 +503,10 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
                 return resolveLookupJoin(j);
             }
 
+            if (plan instanceof Fork f) {
+                return resolveFork(f, childrenOutput);
+            }
+
             return plan.transformExpressionsOnly(UnresolvedAttribute.class, ua -> maybeResolveAttribute(ua, childrenOutput));
         }
 
@@ -700,6 +706,19 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
             }
             return resolved;
         }
+
+        // TODO: this is not right, fix the resolution
+        private LogicalPlan resolveFork(Fork fork, List<Attribute> childrenOutput) {
+            LogicalPlan first = fork.first();
+            LogicalPlan second = fork.second();
+            var newFirst = first.transformUp(LogicalPlan.class, p -> p.childrenResolved() == false ? p : doRule(p));
+            var newSecond = second.transformUp(LogicalPlan.class, p -> p.childrenResolved() == false ? p : doRule(p));
+            return new Fork(fork.source(), fork.child(), newFirst, newSecond);
+        }
+        private LogicalPlan resolveMerge(Merge m, List<Attribute> childrenOutput) {
+            return null;
+        }
+
 
         private Attribute maybeResolveAttribute(UnresolvedAttribute ua, List<Attribute> childrenOutput) {
             return maybeResolveAttribute(ua, childrenOutput, log);

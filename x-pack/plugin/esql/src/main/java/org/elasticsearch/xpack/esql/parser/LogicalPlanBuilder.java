@@ -43,6 +43,7 @@ import org.elasticsearch.xpack.esql.plan.logical.Enrich;
 import org.elasticsearch.xpack.esql.plan.logical.Eval;
 import org.elasticsearch.xpack.esql.plan.logical.Explain;
 import org.elasticsearch.xpack.esql.plan.logical.Filter;
+import org.elasticsearch.xpack.esql.plan.logical.Fork;
 import org.elasticsearch.xpack.esql.plan.logical.Grok;
 import org.elasticsearch.xpack.esql.plan.logical.InlineStats;
 import org.elasticsearch.xpack.esql.plan.logical.Keep;
@@ -555,5 +556,21 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
         }
 
         return p -> new LookupJoin(source, p, right, joinFields);
+    }
+
+    @Override
+    public PlanFactory visitForkCommand(EsqlBaseParser.ForkCommandContext ctx) {
+        PlanFactory firstQuery = visitSubQuery(ctx.firstQuery);
+        PlanFactory secondQuery = visitSubQuery(ctx.secondQuery);
+        return input -> new Fork(
+            source(ctx),
+            input,
+            firstQuery.apply(input),
+            secondQuery.apply(input)
+        );
+    }
+    @Override public PlanFactory visitSubQuery(EsqlBaseParser.SubQueryContext ctx) {
+        //return visitWhereCommand(ctx.subQueryCommand().whereCommand());
+        return visitWhereCommand(ctx.subQueryCommand().whereCommand());
     }
 }

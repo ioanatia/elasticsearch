@@ -93,7 +93,7 @@ DEV_JOIN_FULL :   {this.isDevVersion()}? 'full'          -> pushMode(JOIN_MODE);
 DEV_JOIN_LEFT :   {this.isDevVersion()}? 'left'          -> pushMode(JOIN_MODE);
 DEV_JOIN_RIGHT :  {this.isDevVersion()}? 'right'         -> pushMode(JOIN_MODE);
 DEV_JOIN_LOOKUP : {this.isDevVersion()}? 'lookup'        -> pushMode(JOIN_MODE);
-
+DEV_FORK :        {this.isDevVersion()}? 'fork'          -> pushMode(EXPRESSION_MODE);
 
 //
 // Catch-all for unrecognized commands - don't define any beyond this line
