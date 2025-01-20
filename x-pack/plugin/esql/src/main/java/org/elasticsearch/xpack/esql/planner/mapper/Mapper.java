@@ -19,6 +19,7 @@ import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
 import org.elasticsearch.xpack.esql.plan.logical.LeafPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Limit;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
+import org.elasticsearch.xpack.esql.plan.logical.Merge;
 import org.elasticsearch.xpack.esql.plan.logical.OrderBy;
 import org.elasticsearch.xpack.esql.plan.logical.TopN;
 import org.elasticsearch.xpack.esql.plan.logical.UnaryPlan;
@@ -209,6 +210,17 @@ public class Mapper {
                 && relation.indexMode() == IndexMode.LOOKUP) {
                 return new LookupJoinExec(join.source(), left, right, config.leftFields(), config.rightFields(), join.rightOutputFields());
             }
+        } else if (bp instanceof Merge mr) {
+//            PhysicalPlan left = map(bp.left());
+
+//            if (left instanceof FragmentExec fragment) {
+//                return new FragmentExec(bp);
+//            }
+//
+//            PhysicalPlan right = map(bp.right());
+//            return right;
+
+            return new FragmentExec(bp);
         }
 
         return MapperUtils.unsupported(bp);

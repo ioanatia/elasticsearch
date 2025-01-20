@@ -12,6 +12,7 @@ import org.elasticsearch.xpack.esql.core.expression.Attribute;
 import org.elasticsearch.xpack.esql.core.expression.AttributeSet;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
 import org.elasticsearch.xpack.esql.core.tree.Source;
+import org.elasticsearch.xpack.esql.plan.logical.local.LocalRelation;
 
 import java.io.IOException;
 import java.util.List;
@@ -65,5 +66,9 @@ public class Merge extends BinaryPlan {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
 
+    }
+
+    public static LogicalPlan subPlanData(Merge target, LocalRelation data) {
+        return target.replaceRight(data);
     }
 }

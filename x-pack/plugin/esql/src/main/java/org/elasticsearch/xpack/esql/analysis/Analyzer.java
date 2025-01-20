@@ -72,6 +72,7 @@ import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
 import org.elasticsearch.xpack.esql.plan.logical.Eval;
 import org.elasticsearch.xpack.esql.plan.logical.Fork;
 import org.elasticsearch.xpack.esql.plan.logical.Keep;
+import org.elasticsearch.xpack.esql.plan.logical.LeafPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Limit;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Lookup;
@@ -79,6 +80,7 @@ import org.elasticsearch.xpack.esql.plan.logical.Merge;
 import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
 import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.Rename;
+import org.elasticsearch.xpack.esql.plan.logical.UnaryPlan;
 import org.elasticsearch.xpack.esql.plan.logical.UnresolvedRelation;
 import org.elasticsearch.xpack.esql.plan.logical.join.Join;
 import org.elasticsearch.xpack.esql.plan.logical.join.JoinConfig;
@@ -182,7 +184,18 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
 
     public LogicalPlan analyze(LogicalPlan plan) {
         BitSet partialMetrics = new BitSet(FeatureMetric.values().length);
-        return verify(execute(plan), gatherPreAnalysisMetrics(plan, partialMetrics));
+
+        LogicalPlan analyzed = execute(plan).transformDown(Fork.class, fr -> {
+            LogicalPlan copyFirst = fr.first().replaceChildren(List.of(fr.child())).transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
+            LogicalPlan analyzedFirst = execute(copyFirst);
+
+            LogicalPlan copySecond = fr.second().replaceChildren(List.of(fr.child())).transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
+            LogicalPlan analyzedSecond = execute(copySecond);
+
+            return new Fork(fr.source(), fr.child(), analyzedFirst, analyzedSecond);
+        });
+
+        return verify(analyzed, gatherPreAnalysisMetrics(plan, partialMetrics));
     }
 
     public LogicalPlan verify(LogicalPlan plan, BitSet partialMetrics) {
@@ -457,7 +470,7 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
     public static class ResolveRefs extends BaseAnalyzerRule {
         @Override
         protected LogicalPlan doRule(LogicalPlan plan) {
-            if (plan.childrenResolved() == false) {
+            if (plan.childrenResolved() == false && (plan instanceof Fork) == false) {
                 return plan;
             }
             final List<Attribute> childrenOutput = new ArrayList<>();
@@ -711,14 +724,10 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
         private LogicalPlan resolveFork(Fork fork, List<Attribute> childrenOutput) {
             LogicalPlan first = fork.first();
             LogicalPlan second = fork.second();
-            var newFirst = first.transformUp(LogicalPlan.class, p -> p.childrenResolved() == false ? p : doRule(p));
-            var newSecond = second.transformUp(LogicalPlan.class, p -> p.childrenResolved() == false ? p : doRule(p));
+            UnaryPlan newFirst = (UnaryPlan) first.transformUp(LogicalPlan.class, p -> p.childrenResolved() == false ? p : doRule(p));
+            UnaryPlan newSecond = (UnaryPlan) second.transformUp(LogicalPlan.class, p -> p.childrenResolved() == false ? p : doRule(p));
             return new Fork(fork.source(), fork.child(), newFirst, newSecond);
         }
-        private LogicalPlan resolveMerge(Merge m, List<Attribute> childrenOutput) {
-            return null;
-        }
-
 
         private Attribute maybeResolveAttribute(UnresolvedAttribute ua, List<Attribute> childrenOutput) {
             return maybeResolveAttribute(ua, childrenOutput, log);

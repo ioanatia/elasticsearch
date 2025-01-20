@@ -23,6 +23,7 @@ import org.elasticsearch.compute.operator.Driver;
 import org.elasticsearch.compute.operator.DriverContext;
 import org.elasticsearch.compute.operator.EvalOperator.EvalOperatorFactory;
 import org.elasticsearch.compute.operator.FilterOperator.FilterOperatorFactory;
+import org.elasticsearch.compute.operator.LocalMultiSourceOperator;
 import org.elasticsearch.compute.operator.LocalSourceOperator;
 import org.elasticsearch.compute.operator.LocalSourceOperator.LocalSourceFactory;
 import org.elasticsearch.compute.operator.MvExpandOperator;
@@ -82,6 +83,7 @@ import org.elasticsearch.xpack.esql.plan.physical.FilterExec;
 import org.elasticsearch.xpack.esql.plan.physical.GrokExec;
 import org.elasticsearch.xpack.esql.plan.physical.HashJoinExec;
 import org.elasticsearch.xpack.esql.plan.physical.LimitExec;
+import org.elasticsearch.xpack.esql.plan.physical.LocalMultiSourceExec;
 import org.elasticsearch.xpack.esql.plan.physical.LocalSourceExec;
 import org.elasticsearch.xpack.esql.plan.physical.LookupJoinExec;
 import org.elasticsearch.xpack.esql.plan.physical.MvExpandExec;
@@ -221,6 +223,8 @@ public class LocalExecutionPlanner {
             return planEsStats(statsQuery, context);
         } else if (node instanceof LocalSourceExec localSource) {
             return planLocal(localSource, context);
+        } else if (node instanceof LocalMultiSourceExec localMultiSource) {
+            return planLocalMultiSource(localMultiSource, context);
         } else if (node instanceof ShowExec show) {
             return planShow(show);
         } else if (node instanceof ExchangeSourceExec exchangeSource) {
@@ -606,6 +610,17 @@ public class LocalExecutionPlanner {
         LocalSourceOperator.BlockSupplier supplier = () -> localSourceExec.supplier().get();
         var operator = new LocalSourceOperator(supplier);
         return PhysicalOperation.fromSource(new LocalSourceFactory(() -> operator), layout.build());
+    }
+
+    private PhysicalOperation planLocalMultiSource(LocalMultiSourceExec multiSourceExec, LocalExecutionPlannerContext context) {
+        Layout.Builder layout = new Layout.Builder();
+        layout.append(multiSourceExec.output());
+        LocalMultiSourceOperator.BlockSuppliers suppliers = () -> multiSourceExec.suppliers().stream().map(s -> s.get()).toList();
+        PhysicalOperation source = plan(multiSourceExec.left(), context);
+        return source.with(
+            new LocalMultiSourceOperator.LocalMultiSourceFactory(suppliers),
+            layout.build()
+        );
     }
 
     private PhysicalOperation planShow(ShowExec showExec) {

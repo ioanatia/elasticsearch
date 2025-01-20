@@ -63,10 +63,7 @@ public class Fork extends UnaryPlan implements SurrogateLogicalPlan{
     }
     @Override
     public LogicalPlan surrogate() {
-        // left join between the main relation and the local, lookup relation
-        var left = first.replaceChildrenSameSize(List.of(child()));
-        var right = second.replaceChildrenSameSize(List.of(child()));
-        return new Merge(source(), left, right);
+        return new Merge(source(), first, second);
     }
     public LogicalPlan first() {
         return first;

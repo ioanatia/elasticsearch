@@ -7,6 +7,7 @@
 
 package org.elasticsearch.xpack.esql.plan.logical.local;
 
+import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.compute.data.Block;
@@ -61,5 +62,9 @@ public interface LocalSupplier extends Supplier<Block[]>, Writeable {
     static LocalSupplier readFrom(PlanStreamInput in) throws IOException {
         Block[] blocks = in.readCachedBlockArray();
         return blocks.length == 0 ? EMPTY : of(blocks);
+    }
+
+    static LocalSupplier readFromStreamInput(StreamInput in) throws IOException {
+        return readFrom((PlanStreamInput) in);
     }
 }

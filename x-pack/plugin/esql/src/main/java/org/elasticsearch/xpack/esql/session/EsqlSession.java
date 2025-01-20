@@ -58,9 +58,11 @@ import org.elasticsearch.xpack.esql.parser.EsqlParser;
 import org.elasticsearch.xpack.esql.parser.QueryParams;
 import org.elasticsearch.xpack.esql.plan.TableIdentifier;
 import org.elasticsearch.xpack.esql.plan.logical.Aggregate;
+import org.elasticsearch.xpack.esql.plan.logical.BinaryPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Enrich;
 import org.elasticsearch.xpack.esql.plan.logical.Keep;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
+import org.elasticsearch.xpack.esql.plan.logical.Merge;
 import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.RegexExtract;
 import org.elasticsearch.xpack.esql.plan.logical.UnresolvedRelation;
@@ -209,13 +211,31 @@ public class EsqlSession {
         // Currently the inlinestats are limited and supported as streaming operators, thus present inside the fragment as logical plans
         // Below they get collected, translated into a separate, coordinator based plan and the results 'broadcasted' as a local relation
         physicalPlan.forEachUp(FragmentExec.class, f -> {
-            f.fragment().forEachUp(InlineJoin.class, ij -> {
-                // extract the right side of the plan and replace its source
-                LogicalPlan subplan = InlineJoin.replaceStub(ij.left(), ij.right());
-                // mark the new root node as optimized
-                subplan.setOptimized();
-                PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
-                subplans.add(new PlanTuple(subqueryPlan, ij.right()));
+
+            // change this check - it should be  f.fragment().forEachUp(BinaryPlan.class, ... so we can also handle Merge
+
+//            f.fragment().forEachUp(InlineJoin.class, ij -> {
+//                // extract the right side of the plan and replace its source
+//                LogicalPlan subplan = InlineJoin.replaceStub(ij.left(), ij.right());
+//                // mark the new root node as optimized
+//                subplan.setOptimized();
+//                PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
+//                subplans.add(new PlanTuple(subqueryPlan, ij.right()));
+//            });
+            f.fragment().forEachUp(BinaryPlan.class, bp -> {
+                LogicalPlan subplan = null;
+                if (bp instanceof InlineJoin ij) {
+                    // extract the right side of the plan and replace its source
+                    subplan = InlineJoin.replaceStub(ij.left(), ij.right());
+                } else if (bp instanceof Merge mr) {
+                    subplan = mr.right();
+                }
+                if (subplan != null) {
+                    // mark the new root node as optimized
+                    subplan.setOptimized();
+                    PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
+                    subplans.add(new PlanTuple(subqueryPlan, bp.right()));
+                }
             });
         });
 
@@ -249,10 +269,26 @@ public class EsqlSession {
                 // replace the original logical plan with the backing result
                 final PhysicalPlan newPlan = plan.transformUp(FragmentExec.class, f -> {
                     LogicalPlan frag = f.fragment();
+
+                    // handle Merge logical plan
+//                    return f.withFragment(
+//                        frag.transformUp(
+//                            InlineJoin.class,
+//                            ij -> ij.right() == tuple.logical ? InlineJoin.inlineData(ij, resultWrapper) : ij
+//                        )
+//                    );
+
                     return f.withFragment(
                         frag.transformUp(
-                            InlineJoin.class,
-                            ij -> ij.right() == tuple.logical ? InlineJoin.inlineData(ij, resultWrapper) : ij
+                            BinaryPlan.class,
+                            bp -> {
+                                if (bp instanceof InlineJoin ij &&  ij.right() == tuple.logical){
+                                    return InlineJoin.inlineData(ij, resultWrapper);
+                                } else if (bp instanceof Merge mr && mr.right() == tuple.logical) {
+                                    return Merge.subPlanData(mr, resultWrapper);
+                                }
+                                return bp;
+                            }
                         )
                     );
                 });
