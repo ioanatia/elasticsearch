@@ -129,7 +129,12 @@ public class LocalMapper {
         if (binary instanceof Merge) {
             // TODO: obviously not enough, but let's roll with it
 
-            return new LocalMultiSourceExec(binary.source(), map(binary.left()), map(binary.right()));
+            return new LocalMultiSourceExec(
+                binary.source(),
+                map(binary.left()),
+                map(binary.right()),
+                binary.output()
+            );
         }
 
         return MapperUtils.unsupported(binary);

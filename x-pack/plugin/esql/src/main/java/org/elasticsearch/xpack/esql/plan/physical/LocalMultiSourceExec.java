@@ -21,6 +21,7 @@ import org.elasticsearch.xpack.esql.plan.logical.local.LocalSupplier;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 public class LocalMultiSourceExec extends UnaryExec {
         public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(
@@ -29,15 +30,18 @@ public class LocalMultiSourceExec extends UnaryExec {
         LocalMultiSourceExec::new
     );
     private final PhysicalPlan right;
+    private final List<Attribute> output;
 
-    public LocalMultiSourceExec(Source source,  PhysicalPlan left, PhysicalPlan right) {
+    public LocalMultiSourceExec(Source source,  PhysicalPlan left, PhysicalPlan right, List<Attribute> output) {
         super(source, left);
         this.right = right;
+        this.output = output;
     }
 
     public LocalMultiSourceExec(StreamInput in) throws IOException {
         super(Source.readFrom((PlanStreamInput) in), in.readNamedWriteable(PhysicalPlan.class));
         this.right = in.readNamedWriteable(PhysicalPlan.class);
+        this.output = in.readNamedWriteableCollectionAsList(Attribute.class);
     }
 
     public List<LocalSupplier> suppliers() {
@@ -57,23 +61,30 @@ public class LocalMultiSourceExec extends UnaryExec {
         Source.EMPTY.writeTo(out);
         out.writeNamedWriteable(child());
         out.writeNamedWriteable(right);
+        out.writeNamedWriteableCollection(output);
     }
 
     @Override
     protected NodeInfo<LocalMultiSourceExec> info() {
-        return NodeInfo.create(this, LocalMultiSourceExec::new, child(), right);
+        return NodeInfo.create(this, LocalMultiSourceExec::new, child(), right, output);
     }
 
 
     @Override
     public UnaryExec replaceChild(PhysicalPlan newChild) {
-        return new LocalMultiSourceExec(source(), newChild, right);
+        return new LocalMultiSourceExec(source(), newChild, right, output);
+    }
+
+    @Override
+    public AttributeSet references() {
+        return Expressions.references(output);
     }
 
     @Override
     public List<Attribute> output() {
-        return child().output();
+        return Stream.concat(child().output().stream(), output.stream()).distinct().toList();
     }
+
 
     @Override
     public int hashCode() {

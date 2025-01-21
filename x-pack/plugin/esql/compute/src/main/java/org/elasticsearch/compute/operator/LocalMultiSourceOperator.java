@@ -14,6 +14,9 @@ import org.elasticsearch.compute.data.Page;
 import java.util.List;
 import java.util.function.Supplier;
 
+// TODO - name this to MergeOperator
+// Also I am using AbstractPageMappingOperator which gives the input as a single page
+// but maybe that's not needed.
 public class LocalMultiSourceOperator extends AbstractPageMappingOperator {
 
     private final BlockFactory blockFactory;
@@ -31,22 +34,19 @@ public class LocalMultiSourceOperator extends AbstractPageMappingOperator {
     }
 
     private final BlockSuppliers suppliers;
-    private boolean finished;
-    private Page lastInput;
 
     public LocalMultiSourceOperator(BlockFactory blockFactory, BlockSuppliers suppliers) {
         super();
         this.blockFactory = blockFactory;
         this.suppliers = suppliers;
-        this.finished = false;
-        this.lastInput = null;
     }
 
     public interface BlockSuppliers extends Supplier<List<Block[]>> {};
 
     @Override
     protected Page process(Page page) {
-
+        // combine into a new page - suppliers.get() - will give the Page of results for
+        // the other FORK branches
         return page;
     }
 
@@ -54,33 +54,6 @@ public class LocalMultiSourceOperator extends AbstractPageMappingOperator {
     public String toString() {
         return null;
     }
-
-//    @Override
-//    public boolean needsInput() {
-//        return true;
-//    }
-//
-//    @Override
-//    public void addInput(Page page) {
-//        // TODO: add input from suppliers
-//        lastInput = page;
-//        return;
-//    }
-//
-//    @Override
-//    public void finish() {
-//        finished = true;
-//    }
-//
-//    @Override
-//    public boolean isFinished() {
-//        return finished;
-//    }
-//
-//    @Override
-//    public Page getOutput() {
-//        return lastInput;
-//    }
 
     @Override
     public void close() {
