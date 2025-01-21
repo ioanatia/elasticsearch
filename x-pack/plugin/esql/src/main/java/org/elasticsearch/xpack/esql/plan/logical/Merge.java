@@ -15,10 +15,10 @@ import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.plan.logical.local.LocalRelation;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Merge extends BinaryPlan {
-
     protected Merge(Source source, LogicalPlan left, LogicalPlan right) {
         super(source, left, right);
     }
@@ -50,7 +50,17 @@ public class Merge extends BinaryPlan {
 
     @Override
     public List<Attribute> output() {
-        return left().output(); // TODO: add the _fork attr
+        List<Attribute> output = new ArrayList<>();
+
+        for(Attribute ra : right().output()) {
+            for (Attribute la : left().output()) {
+                if (la.name().equals(ra.name()) && la.dataType() == ra.dataType()) {
+                    output.add(la);
+                }
+            }
+        }
+
+        return output;
     }
 
     @Override

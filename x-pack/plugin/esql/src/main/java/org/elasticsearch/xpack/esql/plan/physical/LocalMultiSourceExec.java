@@ -82,7 +82,8 @@ public class LocalMultiSourceExec extends UnaryExec {
 
     @Override
     public List<Attribute> output() {
-        return Stream.concat(child().output().stream(), output.stream()).distinct().toList();
+        // return Stream.concat(child().output().stream(), output.stream()).distinct().toList();
+        return output;
     }
 
 
