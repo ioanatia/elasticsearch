@@ -14,7 +14,7 @@ import org.elasticsearch.compute.data.Page;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class LocalMultiSourceOperator implements Operator {
+public class LocalMultiSourceOperator extends AbstractPageMappingOperator {
 
     private final BlockFactory blockFactory;
 
@@ -31,44 +31,58 @@ public class LocalMultiSourceOperator implements Operator {
     }
 
     private final BlockSuppliers suppliers;
+    private boolean finished;
+    private Page lastInput;
 
     public LocalMultiSourceOperator(BlockFactory blockFactory, BlockSuppliers suppliers) {
         super();
         this.blockFactory = blockFactory;
         this.suppliers = suppliers;
+        this.finished = false;
+        this.lastInput = null;
     }
 
     public interface BlockSuppliers extends Supplier<List<Block[]>> {};
 
     @Override
-    public boolean needsInput() {
-        return true;
+    protected Page process(Page page) {
+
+        return page;
     }
 
     @Override
-    public void addInput(Page page) {
-        // TODO: add input from suppliers
-
-        return;
-    }
-
-    @Override
-    public void finish() {
-
-    }
-
-    @Override
-    public boolean isFinished() {
-        return false;
-    }
-
-    @Override
-    public Page getOutput() {
+    public String toString() {
         return null;
     }
 
+//    @Override
+//    public boolean needsInput() {
+//        return true;
+//    }
+//
+//    @Override
+//    public void addInput(Page page) {
+//        // TODO: add input from suppliers
+//        lastInput = page;
+//        return;
+//    }
+//
+//    @Override
+//    public void finish() {
+//        finished = true;
+//    }
+//
+//    @Override
+//    public boolean isFinished() {
+//        return finished;
+//    }
+//
+//    @Override
+//    public Page getOutput() {
+//        return lastInput;
+//    }
+
     @Override
     public void close() {
-
     }
 }

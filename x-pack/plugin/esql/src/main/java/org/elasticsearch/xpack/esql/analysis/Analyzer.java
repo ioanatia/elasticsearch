@@ -186,13 +186,10 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
         BitSet partialMetrics = new BitSet(FeatureMetric.values().length);
 
         LogicalPlan analyzed = execute(plan).transformDown(Fork.class, fr -> {
-            LogicalPlan copyFirst = fr.first().replaceChildren(List.of(fr.child())).transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
-            LogicalPlan analyzedFirst = execute(copyFirst);
-
-            LogicalPlan copySecond = fr.second().replaceChildren(List.of(fr.child())).transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
+            LogicalPlan copySecond = fr.second().transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
             LogicalPlan analyzedSecond = execute(copySecond);
 
-            return new Fork(fr.source(), fr.child(), analyzedFirst, analyzedSecond);
+            return new Fork(fr.source(), fr.child(), fr.child(), analyzedSecond);
         });
 
         return verify(analyzed, gatherPreAnalysisMetrics(plan, partialMetrics));

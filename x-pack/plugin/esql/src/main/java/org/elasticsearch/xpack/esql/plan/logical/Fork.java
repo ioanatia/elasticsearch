@@ -73,7 +73,7 @@ public class Fork extends UnaryPlan implements SurrogateLogicalPlan{
     }
     @Override
     public UnaryPlan replaceChild(LogicalPlan newChild) {
-        return new Fork(source(), newChild, first, second);
+        return new Fork(source(), newChild, newChild, second);
     }
     @Override
     public String commandName() {

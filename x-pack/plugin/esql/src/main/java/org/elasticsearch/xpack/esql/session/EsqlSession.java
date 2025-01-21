@@ -211,17 +211,6 @@ public class EsqlSession {
         // Currently the inlinestats are limited and supported as streaming operators, thus present inside the fragment as logical plans
         // Below they get collected, translated into a separate, coordinator based plan and the results 'broadcasted' as a local relation
         physicalPlan.forEachUp(FragmentExec.class, f -> {
-
-            // change this check - it should be  f.fragment().forEachUp(BinaryPlan.class, ... so we can also handle Merge
-
-//            f.fragment().forEachUp(InlineJoin.class, ij -> {
-//                // extract the right side of the plan and replace its source
-//                LogicalPlan subplan = InlineJoin.replaceStub(ij.left(), ij.right());
-//                // mark the new root node as optimized
-//                subplan.setOptimized();
-//                PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
-//                subplans.add(new PlanTuple(subqueryPlan, ij.right()));
-//            });
             f.fragment().forEachUp(BinaryPlan.class, bp -> {
                 LogicalPlan subplan = null;
                 if (bp instanceof InlineJoin ij) {
@@ -269,14 +258,6 @@ public class EsqlSession {
                 // replace the original logical plan with the backing result
                 final PhysicalPlan newPlan = plan.transformUp(FragmentExec.class, f -> {
                     LogicalPlan frag = f.fragment();
-
-                    // handle Merge logical plan
-//                    return f.withFragment(
-//                        frag.transformUp(
-//                            InlineJoin.class,
-//                            ij -> ij.right() == tuple.logical ? InlineJoin.inlineData(ij, resultWrapper) : ij
-//                        )
-//                    );
 
                     return f.withFragment(
                         frag.transformUp(

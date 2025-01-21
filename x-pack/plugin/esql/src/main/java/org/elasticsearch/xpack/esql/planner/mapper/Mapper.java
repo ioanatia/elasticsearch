@@ -211,15 +211,6 @@ public class Mapper {
                 return new LookupJoinExec(join.source(), left, right, config.leftFields(), config.rightFields(), join.rightOutputFields());
             }
         } else if (bp instanceof Merge mr) {
-//            PhysicalPlan left = map(bp.left());
-
-//            if (left instanceof FragmentExec fragment) {
-//                return new FragmentExec(bp);
-//            }
-//
-//            PhysicalPlan right = map(bp.right());
-//            return right;
-
             return new FragmentExec(bp);
         }
 
@@ -227,7 +218,7 @@ public class Mapper {
     }
 
     public static boolean isPipelineBreaker(LogicalPlan p) {
-        return p instanceof Aggregate || p instanceof TopN || p instanceof Limit || p instanceof OrderBy;
+        return p instanceof Aggregate || p instanceof TopN || p instanceof Limit || p instanceof OrderBy || p instanceof Merge;
     }
 
     private PhysicalPlan addExchangeForFragment(LogicalPlan logical, PhysicalPlan child) {

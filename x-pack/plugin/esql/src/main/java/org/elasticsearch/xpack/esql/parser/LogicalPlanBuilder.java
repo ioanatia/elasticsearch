@@ -562,12 +562,17 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
     public PlanFactory visitForkCommand(EsqlBaseParser.ForkCommandContext ctx) {
         PlanFactory firstQuery = visitSubQuery(ctx.firstQuery);
         PlanFactory secondQuery = visitSubQuery(ctx.secondQuery);
-        return input -> new Fork(
-            source(ctx),
-            input,
-            firstQuery.apply(input),
-            secondQuery.apply(input)
-        );
+
+
+        return input -> {
+            LogicalPlan child = firstQuery.apply(input);
+            return new Fork(
+                source(ctx),
+                child,
+                child,
+                secondQuery.apply(input)
+            );
+        };
     }
     @Override public PlanFactory visitSubQuery(EsqlBaseParser.SubQueryContext ctx) {
         //return visitWhereCommand(ctx.subQueryCommand().whereCommand());

@@ -128,9 +128,8 @@ public class LocalMapper {
         }
         if (binary instanceof Merge) {
             // TODO: obviously not enough, but let's roll with it
-            LocalRelation right = (LocalRelation) binary.right();
 
-            return new LocalMultiSourceExec(binary.source(), map(binary.left()), map(binary.right()), right.output(), List.of(right.supplier()));
+            return new LocalMultiSourceExec(binary.source(), map(binary.left()), map(binary.right()));
         }
 
         return MapperUtils.unsupported(binary);

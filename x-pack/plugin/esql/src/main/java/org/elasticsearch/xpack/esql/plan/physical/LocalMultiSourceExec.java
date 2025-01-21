@@ -22,28 +22,30 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 
-public class LocalMultiSourceExec extends BinaryExec {
+public class LocalMultiSourceExec extends UnaryExec {
         public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(
         PhysicalPlan.class,
         "LocalMultiSourceExec",
         LocalMultiSourceExec::new
     );
-    private final List<Attribute> output;
-    private final List<LocalSupplier> suppliers;
+    private final PhysicalPlan right;
 
-    public LocalMultiSourceExec(Source source,  PhysicalPlan left, PhysicalPlan right, List<Attribute> output, List<LocalSupplier> suppliers) {
-        super(source, left, right);
-        this.output = output;
-        this.suppliers = suppliers;
+    public LocalMultiSourceExec(Source source,  PhysicalPlan left, PhysicalPlan right) {
+        super(source, left);
+        this.right = right;
     }
 
     public LocalMultiSourceExec(StreamInput in) throws IOException {
-        super(Source.readFrom((PlanStreamInput) in), in.readNamedWriteable(PhysicalPlan.class), in.readNamedWriteable(PhysicalPlan.class));
-        this.output = in.readNamedWriteableCollectionAsList(Attribute.class);
-        this.suppliers = in.readCollectionAsList(LocalSupplier::readFromStreamInput);
+        super(Source.readFrom((PlanStreamInput) in), in.readNamedWriteable(PhysicalPlan.class));
+        this.right = in.readNamedWriteable(PhysicalPlan.class);
     }
 
-    public List<LocalSupplier> suppliers() { return this.suppliers; }
+    public List<LocalSupplier> suppliers() {
+        if (right instanceof LocalSourceExec lse) {
+            return List.of(lse.supplier());
+        }
+        return List.of();
+    }
 
     @Override
     public String getWriteableName() {
@@ -51,41 +53,31 @@ public class LocalMultiSourceExec extends BinaryExec {
     }
 
     @Override
-    protected BinaryExec replaceChildren(PhysicalPlan newLeft, PhysicalPlan newRight) {
-        return new LocalMultiSourceExec(source(), newLeft, newRight, output, suppliers);
-    }
-
-    @Override
-    public AttributeSet leftReferences() {
-        return Expressions.references(output);
-    }
-
-    @Override
-    public AttributeSet rightReferences() {
-        return Expressions.references(output);
-    }
-
-    @Override
     public void writeTo(StreamOutput out) throws IOException {
-        super.writeTo(out);
-        out.writeNamedWriteableCollection(output);
-        out.writeCollection(suppliers, StreamOutput::writeWriteable);
+        Source.EMPTY.writeTo(out);
+        out.writeNamedWriteable(child());
+        out.writeNamedWriteable(right);
     }
 
     @Override
     protected NodeInfo<LocalMultiSourceExec> info() {
-        return NodeInfo.create(this, LocalMultiSourceExec::new, left(), right(), output, suppliers);
+        return NodeInfo.create(this, LocalMultiSourceExec::new, child(), right);
     }
 
 
     @Override
+    public UnaryExec replaceChild(PhysicalPlan newChild) {
+        return new LocalMultiSourceExec(source(), newChild, right);
+    }
+
+    @Override
     public List<Attribute> output() {
-        return output;
+        return child().output();
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), output, suppliers);
+        return Objects.hash(super.hashCode());
     }
 
 
@@ -93,7 +85,9 @@ public class LocalMultiSourceExec extends BinaryExec {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        var other = (LocalMultiSourceExec) o;
-        return Objects.equals(suppliers, other.suppliers) && Objects.equals(output, other.output);
+        if (super.equals(o) == false) {
+            return false;
+        }
+        return true;
     }
 }
