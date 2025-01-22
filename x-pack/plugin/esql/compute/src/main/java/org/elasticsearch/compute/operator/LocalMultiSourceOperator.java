@@ -12,10 +12,12 @@ import org.elasticsearch.compute.data.Block;
 import org.elasticsearch.compute.data.BlockFactory;
 import org.elasticsearch.compute.data.DocBlock;
 import org.elasticsearch.compute.data.Page;
+import org.elasticsearch.core.Releasables;
 
 import java.util.List;
 import java.util.ListIterator;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 // TODO - name this to MergeOperator
 // Also I am using AbstractPageMappingOperator which gives the input as a single page
@@ -53,11 +55,6 @@ public class LocalMultiSourceOperator implements Operator {
     public interface BlockSuppliers extends Supplier<List<Block[]>> {};
 
     @Override
-    public String toString() {
-        return null;
-    }
-
-    @Override
     public boolean needsInput() {
         return prev == null;
     }
@@ -74,7 +71,7 @@ public class LocalMultiSourceOperator implements Operator {
 
     @Override
     public boolean isFinished() {
-        return finished;
+        return finished && prev == null && subPlanBlocks.hasNext() == false;
     }
 
     @Override
@@ -86,31 +83,48 @@ public class LocalMultiSourceOperator implements Operator {
             int counter = subPlanBlocks.nextIndex() + 1;
             return addDiscriminatorColumn(new Page(subPlanBlocks.next()), "fork" + counter);
         }
-        if (prev == null) { return null; }
-
-        Page result = prev;
-
-        if (prev.getBlock(0) instanceof DocBlock) {
-            int[] projections = new int[prev.getBlockCount() - 1];
-
-            for(int i=1; i < prev.getBlockCount();  i++) {
-                projections[i-1] = i;
-            }
-
-            result = addDiscriminatorColumn(prev.projectBlocks(projections), "fork0");
-            prev = null;
+        if (prev == null) {
+            return null;
         }
+        Page page = prev;
+        prev = null;
+        page = maybeDropDocBlock(page);
+        page = addDiscriminatorColumn(page, "fork0");
+        return page;
+    }
 
-        return result;
+    private static Page maybeDropDocBlock(Page page) {
+        if (page.getBlock(0) instanceof DocBlock) {
+            int[] projections = IntStream.range(1, page.getBlockCount()).toArray();
+            try {
+                return page.projectBlocks(projections);
+            } finally {
+                page.releaseBlocks();
+            }
+        }
+        return page;
     }
 
     private Page addDiscriminatorColumn(Page page, String value) {
         Block discriminatorBlock = blockFactory.newConstantBytesRefBlockWith(new BytesRef(value), page.getPositionCount());
-
         return page.appendBlock(discriminatorBlock);
     }
 
     @Override
     public void close() {
+        if (prev != null) {
+            prev.releaseBlocks();
+        }
+        // The blocks are closable by the other exchange? so we have to copy them
+//        if (subPlanBlocks != null) {
+//            while (subPlanBlocks.hasNext()) {
+//                Releasables.close(subPlanBlocks.next());
+//            }
+//        }
+    }
+
+    @Override
+    public String toString() {
+        return "LocalMultiSourceOperator[subPlanBlocks=" + subPlanBlocks + ", prev=" + prev + "]";
     }
 }

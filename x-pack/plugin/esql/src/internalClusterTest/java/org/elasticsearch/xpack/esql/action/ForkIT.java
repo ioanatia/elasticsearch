@@ -13,6 +13,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.junit.Before;
 
+import java.util.List;
+
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 
 @TestLogging(value = "org.elasticsearch.xpack.esql:TRACE,org.elasticsearch.compute:TRACE", reason = "debug")
@@ -33,9 +35,9 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
             """;
         try (var resp = run(query)) {
             System.out.println("response=" + resp);
-            //assertColumnNames(resp.columns(), List.of("id", "content", "_fork"));
-            //assertColumnTypes(resp.columns(), List.of("integer", "text", "keyword"));
-            //assertValues(resp.values(), List.of(List.of(1), List.of(6)));
+            assertColumnNames(resp.columns(), List.of("content", "id",  "_fork"));
+            assertColumnTypes(resp.columns(), List.of( "text", "integer", "keyword"));
+            //assertValues(resp.values(), ...));
         }
     }
 
