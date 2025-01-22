@@ -7,6 +7,7 @@
 
 package org.elasticsearch.compute.operator;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.compute.data.Block;
 import org.elasticsearch.compute.data.BlockFactory;
 import org.elasticsearch.compute.data.DocBlock;
@@ -82,7 +83,8 @@ public class LocalMultiSourceOperator implements Operator {
             subPlanBlocks = suppliers.get().listIterator();
         }
         if (subPlanBlocks.hasNext()) {
-            return new Page(subPlanBlocks.next());
+            int counter = subPlanBlocks.nextIndex() + 1;
+            return addDiscriminatorColumn(new Page(subPlanBlocks.next()), "fork" + counter);
         }
         if (prev == null) { return null; }
 
@@ -95,11 +97,17 @@ public class LocalMultiSourceOperator implements Operator {
                 projections[i-1] = i;
             }
 
-            result = prev.projectBlocks(projections);
+            result = addDiscriminatorColumn(prev.projectBlocks(projections), "fork0");
             prev = null;
         }
 
         return result;
+    }
+
+    private Page addDiscriminatorColumn(Page page, String value) {
+        Block discriminatorBlock = blockFactory.newConstantBytesRefBlockWith(new BytesRef(value), page.getPositionCount());
+
+        return page.appendBlock(discriminatorBlock);
     }
 
     @Override

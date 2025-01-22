@@ -189,7 +189,7 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
             LogicalPlan copySecond = fr.second().transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
             LogicalPlan analyzedSecond = execute(copySecond);
 
-            return new Fork(fr.source(), fr.child(), fr.child(), analyzedSecond);
+            return new Fork(fr.source(), fr.child(), fr.child(), analyzedSecond, fr.discriminator());
         });
 
         return verify(analyzed, gatherPreAnalysisMetrics(plan, partialMetrics));
@@ -719,11 +719,17 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
 
         // TODO: this is not right, fix the resolution
         private LogicalPlan resolveFork(Fork fork, List<Attribute> childrenOutput) {
-            LogicalPlan first = fork.first();
-            LogicalPlan second = fork.second();
-            UnaryPlan newFirst = (UnaryPlan) first.transformUp(LogicalPlan.class, p -> p.childrenResolved() == false ? p : doRule(p));
-            UnaryPlan newSecond = (UnaryPlan) second.transformUp(LogicalPlan.class, p -> p.childrenResolved() == false ? p : doRule(p));
-            return new Fork(fork.source(), fork.child(), newFirst, newSecond);
+            if (fork.discriminator() instanceof UnresolvedAttribute ua) {
+                Attribute discriminator = maybeResolveAttribute(ua, childrenOutput);
+
+                if (discriminator instanceof UnresolvedAttribute) {
+                    discriminator = new ReferenceAttribute(fork.source(), "_fork", KEYWORD);
+                }
+
+                return new Fork(fork.source(), fork.child(), fork.first(), fork.second(), discriminator);
+            }
+
+            return fork;
         }
 
         private Attribute maybeResolveAttribute(UnresolvedAttribute ua, List<Attribute> childrenOutput) {

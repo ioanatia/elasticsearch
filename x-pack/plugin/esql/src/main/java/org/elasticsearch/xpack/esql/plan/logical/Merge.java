@@ -19,8 +19,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Merge extends BinaryPlan {
-    protected Merge(Source source, LogicalPlan left, LogicalPlan right) {
+    private final Attribute discriminator;
+
+    protected Merge(Source source, LogicalPlan left, LogicalPlan right, Attribute discriminator) {
         super(source, left, right);
+        this.discriminator = discriminator;
     }
 
     @Override
@@ -35,7 +38,7 @@ public class Merge extends BinaryPlan {
 
     @Override
     public BinaryPlan replaceChildren(LogicalPlan left, LogicalPlan right) {
-        return new Merge(source(), left, right);
+        return new Merge(source(), left, right, discriminator);
     }
 
     @Override
@@ -59,13 +62,14 @@ public class Merge extends BinaryPlan {
                 }
             }
         }
+        output.add(discriminator);
 
         return output;
     }
 
     @Override
     protected NodeInfo<? extends LogicalPlan> info() {
-        return NodeInfo.create(this, Merge::new, left(), right());
+        return NodeInfo.create(this, Merge::new, left(), right(), discriminator);
     }
 
     @Override

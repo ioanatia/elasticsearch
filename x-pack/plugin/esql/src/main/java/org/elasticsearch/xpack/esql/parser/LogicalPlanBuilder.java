@@ -570,7 +570,8 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
                 source(ctx),
                 child,
                 child,
-                secondQuery.apply(input)
+                secondQuery.apply(input),
+                new UnresolvedAttribute(source(ctx), "_fork")
             );
         };
     }

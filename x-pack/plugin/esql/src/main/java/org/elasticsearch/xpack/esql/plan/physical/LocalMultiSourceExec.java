@@ -77,7 +77,7 @@ public class LocalMultiSourceExec extends UnaryExec {
 
     @Override
     public AttributeSet references() {
-        return Expressions.references(output);
+        return Expressions.references(output.stream().filter(at -> at.name().equals("_fork") == false).toList());
     }
 
     @Override
