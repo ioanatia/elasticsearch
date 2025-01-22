@@ -9,17 +9,22 @@ package org.elasticsearch.compute.operator;
 
 import org.elasticsearch.compute.data.Block;
 import org.elasticsearch.compute.data.BlockFactory;
+import org.elasticsearch.compute.data.DocBlock;
 import org.elasticsearch.compute.data.Page;
 
 import java.util.List;
+import java.util.ListIterator;
 import java.util.function.Supplier;
 
 // TODO - name this to MergeOperator
 // Also I am using AbstractPageMappingOperator which gives the input as a single page
 // but maybe that's not needed.
-public class LocalMultiSourceOperator extends AbstractPageMappingOperator {
+public class LocalMultiSourceOperator implements Operator {
 
     private final BlockFactory blockFactory;
+    private boolean finished;
+    private Page prev;
+    private ListIterator<Block[]> subPlanBlocks;
 
     public record LocalMultiSourceFactory(BlockSuppliers suppliers) implements OperatorFactory {
         @Override
@@ -39,20 +44,63 @@ public class LocalMultiSourceOperator extends AbstractPageMappingOperator {
         super();
         this.blockFactory = blockFactory;
         this.suppliers = suppliers;
+        this.finished = false;
+        this.prev = null;
+        this.subPlanBlocks = null;
     }
 
     public interface BlockSuppliers extends Supplier<List<Block[]>> {};
 
     @Override
-    protected Page process(Page page) {
-        // combine into a new page - suppliers.get() - will give the Page of results for
-        // the other FORK branches
-        return page;
+    public String toString() {
+        return null;
     }
 
     @Override
-    public String toString() {
-        return null;
+    public boolean needsInput() {
+        return prev == null;
+    }
+
+    @Override
+    public void addInput(Page page) {
+        prev = page;
+    }
+
+    @Override
+    public void finish() {
+        finished = true;
+    }
+
+    @Override
+    public boolean isFinished() {
+        return finished;
+    }
+
+    @Override
+    public Page getOutput() {
+        if (subPlanBlocks == null) {
+            subPlanBlocks = suppliers.get().listIterator();
+        }
+        if (subPlanBlocks.hasNext()) {
+            return new Page(subPlanBlocks.next());
+        }
+
+        if (prev.getBlock(0) instanceof DocBlock) {
+            if (prev.getBlockCount() == 1) {
+                prev.releaseBlocks();
+                return null;
+            }
+
+            int[] projections = new int[prev.getBlockCount() - 1];
+
+            for(int i=1; i < prev.getBlockCount();  i++) {
+                projections[i-1] = i;
+            }
+
+            prev = prev.projectBlocks(projections);
+        }
+
+        return prev;
     }
 
     @Override
