@@ -84,23 +84,22 @@ public class LocalMultiSourceOperator implements Operator {
         if (subPlanBlocks.hasNext()) {
             return new Page(subPlanBlocks.next());
         }
+        if (prev == null) { return null; }
+
+        Page result = prev;
 
         if (prev.getBlock(0) instanceof DocBlock) {
-            if (prev.getBlockCount() == 1) {
-                prev.releaseBlocks();
-                return null;
-            }
-
             int[] projections = new int[prev.getBlockCount() - 1];
 
             for(int i=1; i < prev.getBlockCount();  i++) {
                 projections[i-1] = i;
             }
 
-            prev = prev.projectBlocks(projections);
+            result = prev.projectBlocks(projections);
+            prev = null;
         }
 
-        return prev;
+        return result;
     }
 
     @Override
