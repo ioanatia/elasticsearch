@@ -21,10 +21,9 @@ import org.elasticsearch.xpack.esql.plan.logical.local.LocalSupplier;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 public class LocalMultiSourceExec extends UnaryExec {
-        public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(
+    public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(
         PhysicalPlan.class,
         "LocalMultiSourceExec",
         LocalMultiSourceExec::new
@@ -32,7 +31,7 @@ public class LocalMultiSourceExec extends UnaryExec {
     private final PhysicalPlan right;
     private final List<Attribute> output;
 
-    public LocalMultiSourceExec(Source source,  PhysicalPlan left, PhysicalPlan right, List<Attribute> output) {
+    public LocalMultiSourceExec(Source source, PhysicalPlan left, PhysicalPlan right, List<Attribute> output) {
         super(source, left);
         this.right = right;
         this.output = output;
@@ -69,7 +68,6 @@ public class LocalMultiSourceExec extends UnaryExec {
         return NodeInfo.create(this, LocalMultiSourceExec::new, child(), right, output);
     }
 
-
     @Override
     public UnaryExec replaceChild(PhysicalPlan newChild) {
         return new LocalMultiSourceExec(source(), newChild, right, output);
@@ -86,12 +84,10 @@ public class LocalMultiSourceExec extends UnaryExec {
         return output;
     }
 
-
     @Override
     public int hashCode() {
         return Objects.hash(super.hashCode());
     }
-
 
     @Override
     public boolean equals(Object o) {

@@ -41,7 +41,7 @@ public class LocalPhysicalPlanOptimizer extends ParameterizedRuleExecutor<Physic
     }
 
     public PhysicalPlan localOptimize(PhysicalPlan plan) {
-            return verify(execute(plan));
+        return verify(execute(plan));
     }
 
     PhysicalPlan verify(PhysicalPlan plan) {

@@ -649,19 +649,26 @@ public class EsqlBaseParserBaseVisitor<T> extends AbstractParseTreeVisitor<T> im
    * <p>The default implementation returns the result of calling
    * {@link #visitChildren} on {@code ctx}.</p>
    */
-  @Override public T visitSubQuery(EsqlBaseParser.SubQueryContext ctx) { return visitChildren(ctx); }
+  @Override public T visitForkSubQuery(EsqlBaseParser.ForkSubQueryContext ctx) { return visitChildren(ctx); }
   /**
    * {@inheritDoc}
    *
    * <p>The default implementation returns the result of calling
    * {@link #visitChildren} on {@code ctx}.</p>
    */
-  @Override public T visitSubQueryCommand(EsqlBaseParser.SubQueryCommandContext ctx) { return visitChildren(ctx); }
+  @Override public T visitSingleForkSubQueryCommand(EsqlBaseParser.SingleForkSubQueryCommandContext ctx) { return visitChildren(ctx); }
   /**
    * {@inheritDoc}
    *
    * <p>The default implementation returns the result of calling
    * {@link #visitChildren} on {@code ctx}.</p>
    */
-  @Override public T visitSubQueryTailCommand(EsqlBaseParser.SubQueryTailCommandContext ctx) { return visitChildren(ctx); }
+  @Override public T visitCompositeForkSubQuery(EsqlBaseParser.CompositeForkSubQueryContext ctx) { return visitChildren(ctx); }
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   */
+  @Override public T visitForkSubQueryProcessingCommand(EsqlBaseParser.ForkSubQueryProcessingCommandContext ctx) { return visitChildren(ctx); }
 }

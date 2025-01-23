@@ -586,21 +586,29 @@ public interface EsqlBaseParserVisitor<T> extends ParseTreeVisitor<T> {
    */
   T visitForkCommand(EsqlBaseParser.ForkCommandContext ctx);
   /**
-   * Visit a parse tree produced by {@link EsqlBaseParser#subQuery}.
+   * Visit a parse tree produced by {@link EsqlBaseParser#forkSubQuery}.
    * @param ctx the parse tree
    * @return the visitor result
    */
-  T visitSubQuery(EsqlBaseParser.SubQueryContext ctx);
+  T visitForkSubQuery(EsqlBaseParser.ForkSubQueryContext ctx);
   /**
-   * Visit a parse tree produced by {@link EsqlBaseParser#subQueryCommand}.
+   * Visit a parse tree produced by the {@code singleForkSubQueryCommand}
+   * labeled alternative in {@link EsqlBaseParser#forkSubQueryCommand}.
    * @param ctx the parse tree
    * @return the visitor result
    */
-  T visitSubQueryCommand(EsqlBaseParser.SubQueryCommandContext ctx);
+  T visitSingleForkSubQueryCommand(EsqlBaseParser.SingleForkSubQueryCommandContext ctx);
   /**
-   * Visit a parse tree produced by {@link EsqlBaseParser#subQueryTailCommand}.
+   * Visit a parse tree produced by the {@code compositeForkSubQuery}
+   * labeled alternative in {@link EsqlBaseParser#forkSubQueryCommand}.
    * @param ctx the parse tree
    * @return the visitor result
    */
-  T visitSubQueryTailCommand(EsqlBaseParser.SubQueryTailCommandContext ctx);
+  T visitCompositeForkSubQuery(EsqlBaseParser.CompositeForkSubQueryContext ctx);
+  /**
+   * Visit a parse tree produced by {@link EsqlBaseParser#forkSubQueryProcessingCommand}.
+   * @param ctx the parse tree
+   * @return the visitor result
+   */
+  T visitForkSubQueryProcessingCommand(EsqlBaseParser.ForkSubQueryProcessingCommandContext ctx);
 }

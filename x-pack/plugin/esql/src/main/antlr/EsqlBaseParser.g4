@@ -333,15 +333,20 @@ joinPredicate
     ;
 
 forkCommand
-    : DEV_FORK firstQuery=subQuery COMMA secondQuery=subQuery
+    : DEV_FORK firstQuery=forkSubQuery secondQuery=forkSubQuery
     ;
-subQuery
-    : OPENING_BRACKET subQueryCommand CLOSING_BRACKET
+
+forkSubQuery
+    : OPENING_BRACKET forkSubQueryCommand CLOSING_BRACKET
     ;
-subQueryCommand
-    : whereCommand (PIPE subQueryTailCommand)?
+
+forkSubQueryCommand
+    : forkSubQueryProcessingCommand                             #singleForkSubQueryCommand
+    | forkSubQueryCommand PIPE forkSubQueryProcessingCommand    #compositeForkSubQuery
     ;
-subQueryTailCommand
-    : sortCommand
+
+forkSubQueryProcessingCommand
+    : whereCommand
+    | sortCommand
     | limitCommand
     ;

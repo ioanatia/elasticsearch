@@ -24,7 +24,6 @@ import org.elasticsearch.xpack.esql.plan.logical.UnaryPlan;
 import org.elasticsearch.xpack.esql.plan.logical.join.Join;
 import org.elasticsearch.xpack.esql.plan.logical.join.JoinConfig;
 import org.elasticsearch.xpack.esql.plan.logical.join.JoinTypes;
-import org.elasticsearch.xpack.esql.plan.logical.local.LocalRelation;
 import org.elasticsearch.xpack.esql.plan.physical.EsSourceExec;
 import org.elasticsearch.xpack.esql.plan.physical.HashJoinExec;
 import org.elasticsearch.xpack.esql.plan.physical.LimitExec;
@@ -129,12 +128,7 @@ public class LocalMapper {
         if (binary instanceof Merge) {
             // TODO: obviously not enough, but let's roll with it
 
-            return new LocalMultiSourceExec(
-                binary.source(),
-                map(binary.left()),
-                map(binary.right()),
-                binary.output()
-            );
+            return new LocalMultiSourceExec(binary.source(), map(binary.left()), map(binary.right()), binary.output());
         }
 
         return MapperUtils.unsupported(binary);

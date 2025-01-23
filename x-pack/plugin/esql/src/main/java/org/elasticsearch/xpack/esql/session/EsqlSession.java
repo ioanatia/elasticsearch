@@ -259,19 +259,14 @@ public class EsqlSession {
                 final PhysicalPlan newPlan = plan.transformUp(FragmentExec.class, f -> {
                     LogicalPlan frag = f.fragment();
 
-                    return f.withFragment(
-                        frag.transformUp(
-                            BinaryPlan.class,
-                            bp -> {
-                                if (bp instanceof InlineJoin ij &&  ij.right() == tuple.logical){
-                                    return InlineJoin.inlineData(ij, resultWrapper);
-                                } else if (bp instanceof Merge mr && mr.right() == tuple.logical) {
-                                    return Merge.subPlanData(mr, resultWrapper);
-                                }
-                                return bp;
-                            }
-                        )
-                    );
+                    return f.withFragment(frag.transformUp(BinaryPlan.class, bp -> {
+                        if (bp instanceof InlineJoin ij && ij.right() == tuple.logical) {
+                            return InlineJoin.inlineData(ij, resultWrapper);
+                        } else if (bp instanceof Merge mr && mr.right() == tuple.logical) {
+                            return Merge.subPlanData(mr, resultWrapper);
+                        }
+                        return bp;
+                    }));
                 });
                 if (subPlanIterator.hasNext() == false) {
                     runner.run(newPlan, next.delegateFailureAndWrap((finalListener, finalResult) -> {

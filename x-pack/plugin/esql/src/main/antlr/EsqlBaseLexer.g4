@@ -93,7 +93,8 @@ DEV_JOIN_FULL :   {this.isDevVersion()}? 'full'          -> pushMode(JOIN_MODE);
 DEV_JOIN_LEFT :   {this.isDevVersion()}? 'left'          -> pushMode(JOIN_MODE);
 DEV_JOIN_RIGHT :  {this.isDevVersion()}? 'right'         -> pushMode(JOIN_MODE);
 DEV_JOIN_LOOKUP : {this.isDevVersion()}? 'lookup'        -> pushMode(JOIN_MODE);
-DEV_FORK :        {this.isDevVersion()}? 'fork'          -> pushMode(EXPRESSION_MODE);
+// FORK
+DEV_FORK :        {this.isDevVersion()}? 'fork'          -> pushMode(FORK_MODE);
 
 //
 // Catch-all for unrecognized commands - don't define any beyond this line
@@ -632,3 +633,16 @@ CLOSING_METRICS_BY
 CLOSING_METRICS_PIPE
     : PIPE -> type(PIPE), popMode
     ;
+
+//
+// Fork
+//
+mode FORK_MODE;
+// double push since expression mode double pops
+FORK_OPENING_BRACKET : OPENING_BRACKET -> type(OPENING_BRACKET), pushMode(DEFAULT_MODE),pushMode(EXPRESSION_MODE);
+FORK_CLOSING_BRACKET : CLOSING_BRACKET -> type(CLOSING_BRACKET), popMode;
+FORK_PIPE : PIPE -> type(PIPE), popMode;
+FORK_COMMA : COMMA -> type(COMMA);
+FORK_WS : WS -> channel(HIDDEN);
+FORK_LINE_COMMENT : LINE_COMMENT -> channel(HIDDEN);
+FORK_MULTILINE_COMMENT : MULTILINE_COMMENT -> channel(HIDDEN);

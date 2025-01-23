@@ -617,10 +617,7 @@ public class LocalExecutionPlanner {
         layout.append(multiSourceExec.output());
         LocalMultiSourceOperator.BlockSuppliers suppliers = () -> multiSourceExec.suppliers().stream().map(s -> s.get()).toList();
         PhysicalOperation source = plan(multiSourceExec.child(), context);
-        return source.with(
-            new LocalMultiSourceOperator.LocalMultiSourceFactory(suppliers),
-            layout.build()
-        );
+        return source.with(new LocalMultiSourceOperator.LocalMultiSourceFactory(suppliers), layout.build());
     }
 
     private PhysicalOperation planShow(ShowExec showExec) {

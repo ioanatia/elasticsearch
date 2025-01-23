@@ -76,11 +76,9 @@ import org.elasticsearch.xpack.esql.plan.logical.LeafPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Limit;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Lookup;
-import org.elasticsearch.xpack.esql.plan.logical.Merge;
 import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
 import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.Rename;
-import org.elasticsearch.xpack.esql.plan.logical.UnaryPlan;
 import org.elasticsearch.xpack.esql.plan.logical.UnresolvedRelation;
 import org.elasticsearch.xpack.esql.plan.logical.join.Join;
 import org.elasticsearch.xpack.esql.plan.logical.join.JoinConfig;
@@ -186,7 +184,8 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
         BitSet partialMetrics = new BitSet(FeatureMetric.values().length);
 
         LogicalPlan forkAnalyzed = plan.transformDown(Fork.class, fr -> {
-            LogicalPlan copySecond = fr.second().transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
+            LogicalPlan copySecond = fr.second()
+                .transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
             LogicalPlan analyzedSecond = execute(copySecond);
 
             return new Fork(fr.source(), fr.child(), fr.child(), analyzedSecond, fr.discriminator());

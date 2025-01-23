@@ -1093,37 +1093,49 @@ public class EsqlBaseParserBaseListener implements EsqlBaseParserListener {
    *
    * <p>The default implementation does nothing.</p>
    */
-  @Override public void enterSubQuery(EsqlBaseParser.SubQueryContext ctx) { }
+  @Override public void enterForkSubQuery(EsqlBaseParser.ForkSubQueryContext ctx) { }
   /**
    * {@inheritDoc}
    *
    * <p>The default implementation does nothing.</p>
    */
-  @Override public void exitSubQuery(EsqlBaseParser.SubQueryContext ctx) { }
+  @Override public void exitForkSubQuery(EsqlBaseParser.ForkSubQueryContext ctx) { }
   /**
    * {@inheritDoc}
    *
    * <p>The default implementation does nothing.</p>
    */
-  @Override public void enterSubQueryCommand(EsqlBaseParser.SubQueryCommandContext ctx) { }
+  @Override public void enterSingleForkSubQueryCommand(EsqlBaseParser.SingleForkSubQueryCommandContext ctx) { }
   /**
    * {@inheritDoc}
    *
    * <p>The default implementation does nothing.</p>
    */
-  @Override public void exitSubQueryCommand(EsqlBaseParser.SubQueryCommandContext ctx) { }
+  @Override public void exitSingleForkSubQueryCommand(EsqlBaseParser.SingleForkSubQueryCommandContext ctx) { }
   /**
    * {@inheritDoc}
    *
    * <p>The default implementation does nothing.</p>
    */
-  @Override public void enterSubQueryTailCommand(EsqlBaseParser.SubQueryTailCommandContext ctx) { }
+  @Override public void enterCompositeForkSubQuery(EsqlBaseParser.CompositeForkSubQueryContext ctx) { }
   /**
    * {@inheritDoc}
    *
    * <p>The default implementation does nothing.</p>
    */
-  @Override public void exitSubQueryTailCommand(EsqlBaseParser.SubQueryTailCommandContext ctx) { }
+  @Override public void exitCompositeForkSubQuery(EsqlBaseParser.CompositeForkSubQueryContext ctx) { }
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation does nothing.</p>
+   */
+  @Override public void enterForkSubQueryProcessingCommand(EsqlBaseParser.ForkSubQueryProcessingCommandContext ctx) { }
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation does nothing.</p>
+   */
+  @Override public void exitForkSubQueryProcessingCommand(EsqlBaseParser.ForkSubQueryProcessingCommandContext ctx) { }
 
   /**
    * {@inheritDoc}

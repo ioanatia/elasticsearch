@@ -82,7 +82,7 @@ public class Merge extends BinaryPlan {
     public List<Attribute> output() {
         List<Attribute> output = new ArrayList<>();
 
-        for(Attribute ra : right().output()) {
+        for (Attribute ra : right().output()) {
             for (Attribute la : left().output()) {
                 if (la.name().equals(ra.name()) && la.dataType() == ra.dataType()) {
                     output.add(la);
