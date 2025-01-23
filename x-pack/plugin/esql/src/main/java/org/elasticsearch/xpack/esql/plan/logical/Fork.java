@@ -118,10 +118,11 @@ public class Fork extends UnaryPlan implements SurrogateLogicalPlan{
         }
         Fork other = (Fork) o;
         return Objects.equals(first, other.first)
-            && Objects.equals(second, other.second);
+            && Objects.equals(second, other.second)
+            && Objects.equals(discriminator, other.discriminator);
     }
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), first, second);
+        return Objects.hash(super.hashCode(), first, second, discriminator);
     }
 }

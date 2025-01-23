@@ -185,14 +185,14 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
     public LogicalPlan analyze(LogicalPlan plan) {
         BitSet partialMetrics = new BitSet(FeatureMetric.values().length);
 
-        LogicalPlan analyzed = execute(plan).transformDown(Fork.class, fr -> {
+        LogicalPlan forkAnalyzed = plan.transformDown(Fork.class, fr -> {
             LogicalPlan copySecond = fr.second().transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
             LogicalPlan analyzedSecond = execute(copySecond);
 
             return new Fork(fr.source(), fr.child(), fr.child(), analyzedSecond, fr.discriminator());
         });
 
-        return verify(analyzed, gatherPreAnalysisMetrics(plan, partialMetrics));
+        return verify(execute(forkAnalyzed), gatherPreAnalysisMetrics(plan, partialMetrics));
     }
 
     public LogicalPlan verify(LogicalPlan plan, BitSet partialMetrics) {
@@ -467,7 +467,7 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
     public static class ResolveRefs extends BaseAnalyzerRule {
         @Override
         protected LogicalPlan doRule(LogicalPlan plan) {
-            if (plan.childrenResolved() == false && (plan instanceof Fork) == false) {
+            if (plan.childrenResolved() == false) {
                 return plan;
             }
             final List<Attribute> childrenOutput = new ArrayList<>();
