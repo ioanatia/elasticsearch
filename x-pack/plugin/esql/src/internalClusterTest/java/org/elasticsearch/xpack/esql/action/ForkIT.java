@@ -211,6 +211,25 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
         }
     }
 
+    public void testScoringKeepAndSort() {
+        var query = """
+            FROM test METADATA _score
+            | WHERE id > 2
+            | FORK
+               [WHERE content:"fox" ]
+               [WHERE content:"dog" ]
+            | KEEP id, content, _fork, _score
+            | SORT id
+            """;
+
+        try (var resp = run(query)) {
+            System.out.println("response=" + resp);
+            // assertColumnNames(resp.columns(), List.of("id", "content", "_fork"));
+            // assertColumnTypes(resp.columns(), List.of("integer", "text", "keyword"));
+            // assertValues(resp.values(), List.of(List.of(1), List.of(6)));
+        }
+    }
+
     private void createAndPopulateIndex() {
         var indexName = "test";
         var client = client().admin().indices();

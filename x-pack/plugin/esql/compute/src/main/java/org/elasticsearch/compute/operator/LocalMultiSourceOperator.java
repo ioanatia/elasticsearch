@@ -88,20 +88,7 @@ public class LocalMultiSourceOperator implements Operator {
         }
         Page page = prev;
         prev = null;
-        page = maybeDropDocBlock(page);
         page = addDiscriminatorColumn(page, "fork0");
-        return page;
-    }
-
-    private static Page maybeDropDocBlock(Page page) {
-        if (page.getBlock(0) instanceof DocBlock) {
-            int[] projections = IntStream.range(1, page.getBlockCount()).toArray();
-            try {
-                return page.projectBlocks(projections);
-            } finally {
-                page.releaseBlocks();
-            }
-        }
         return page;
     }
 

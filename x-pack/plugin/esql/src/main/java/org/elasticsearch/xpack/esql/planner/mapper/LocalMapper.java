@@ -32,6 +32,7 @@ import org.elasticsearch.xpack.esql.plan.physical.LocalSourceExec;
 import org.elasticsearch.xpack.esql.plan.physical.LookupJoinExec;
 import org.elasticsearch.xpack.esql.plan.physical.OrderExec;
 import org.elasticsearch.xpack.esql.plan.physical.PhysicalPlan;
+import org.elasticsearch.xpack.esql.plan.physical.ProjectExec;
 import org.elasticsearch.xpack.esql.plan.physical.TopNExec;
 
 import java.util.List;
@@ -128,7 +129,17 @@ public class LocalMapper {
         if (binary instanceof Merge) {
             // TODO: obviously not enough, but let's roll with it
 
-            return new LocalMultiSourceExec(binary.source(), map(binary.left()), map(binary.right()), binary.output());
+            PhysicalPlan left = map(binary.left());
+            PhysicalPlan right = map(binary.right());
+
+            // align the input and the output for the LocalMultiSourceOperator
+            // we add a ProjectExec on the main branch to reoder the output
+            // the last element of  binary.output is the discriminator column which we don't include in ProjectExec
+            List<Attribute> output = binary.output();
+            List<Attribute> input = binary.output().subList(0, output.size() - 1);
+            PhysicalPlan project = new ProjectExec(binary.source(), left, input);
+
+            return new LocalMultiSourceExec(binary.source(), project, right, binary.output());
         }
 
         return MapperUtils.unsupported(binary);
