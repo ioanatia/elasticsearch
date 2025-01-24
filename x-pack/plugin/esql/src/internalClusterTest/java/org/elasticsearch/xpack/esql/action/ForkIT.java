@@ -187,22 +187,27 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
         }
     }
 
-    // line 5:5: mismatched input 'LIMIT' expecting {'limit', 'sort', 'where'}
-    // org.elasticsearch.xpack.esql.parser.ParsingException: line 5:5: mismatched input 'LIMIT' expecting {'limit', 'sort', 'where'}
     public void testLimitOnlyInSecondSubQuery() {
         var query = """
             FROM test
-            | WHERE id > 2
             | FORK
-               [WHERE content:"dog" | SORT id | LIMIT 1]
-               [LIMIT 1]
-            | KEEP id, content, _fork
+               [ WHERE content:"fox" ]
+               [ LIMIT 3 ]
+            | SORT _fork, id
+            | KEEP _fork, id, content
             """;
         try (var resp = run(query)) {
             System.out.println("response=" + resp);
-            // assertColumnNames(resp.columns(), List.of("id", "content", "_fork"));
-            // assertColumnTypes(resp.columns(), List.of("integer", "text", "keyword"));
-            // assertValues(resp.values(), List.of(List.of(1), List.of(6)));
+            assertColumnNames(resp.columns(), List.of("_fork", "id", "content"));
+            assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of("fork0", 1, "This is a brown fox"),
+                List.of("fork0", 6, "The quick brown fox jumps over the lazy dog"),
+                List.of("fork1", 1, "This is a brown fox"),
+                List.of("fork1", 2, "This is a brown dog"),
+                List.of("fork1", 3, "This dog is really brown")
+            );
+            assertValues(resp.values(), expectedValues);
         }
     }
 
