@@ -48,13 +48,13 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
         }
     }
 
-    public void testSortAndLimitInSecondSubQuery() {
+    public void testSortAndLimitInFirstSubQuery() {
         var query = """
             FROM test
-            | WHERE id > 2
+            | WHERE id > 0
             | FORK
-               [WHERE content:"fox" ]
-               [WHERE content:"dog" | SORT id DESC | LIMIT 1]
+               [WHERE content:"fox" | SORT id DESC | LIMIT 1 ]
+               [WHERE content:"dog" ]
             | KEEP id, _fork, content
             | SORT id, _fork
             """;
@@ -62,8 +62,57 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
             assertColumnNames(resp.columns(), List.of("id", "_fork", "content"));
             assertColumnTypes(resp.columns(), List.of("integer", "keyword", "text"));
             Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of(2, "fork1", "This is a brown dog"),
+                List.of(3, "fork1", "This dog is really brown"),
+                List.of(4, "fork1", "The dog is brown but this document is very very long"),
                 List.of(6, "fork0", "The quick brown fox jumps over the lazy dog"),
                 List.of(6, "fork1", "The quick brown fox jumps over the lazy dog")
+            );
+            assertValues(resp.values(), expectedValues);
+        }
+    }
+
+    public void testSortAndLimitInFirstSubQueryASC() {
+        var query = """
+            FROM test
+            | WHERE id > 0
+            | FORK
+               [WHERE content:"fox" | SORT id ASC | LIMIT 1 ]
+               [WHERE content:"dog" ]
+            | KEEP id, _fork, content
+            | SORT id, _fork
+            """;
+        try (var resp = run(query)) {
+            assertColumnNames(resp.columns(), List.of("id", "_fork", "content"));
+            assertColumnTypes(resp.columns(), List.of("integer", "keyword", "text"));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of(1, "fork0", "This is a brown fox"),
+                List.of(2, "fork1", "This is a brown dog"),
+                List.of(3, "fork1", "This dog is really brown"),
+                List.of(4, "fork1", "The dog is brown but this document is very very long"),
+                List.of(6, "fork1", "The quick brown fox jumps over the lazy dog")
+            );
+            assertValues(resp.values(), expectedValues);
+        }
+    }
+
+    public void testSortAndLimitInSecondSubQuery() {
+        var query = """
+            FROM test
+            | WHERE id > 2
+            | FORK
+               [WHERE content:"fox" ]
+               [WHERE content:"dog" | SORT id DESC | LIMIT 2]
+            | KEEP _fork, id, content
+            | SORT _fork, id
+            """;
+        try (var resp = run(query)) {
+            assertColumnNames(resp.columns(), List.of("_fork", "id", "content"));
+            assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of("fork0", 6, "The quick brown fox jumps over the lazy dog"),
+                List.of("fork1", 4, "The dog is brown but this document is very very long"),
+                List.of("fork1", 6, "The quick brown fox jumps over the lazy dog")
             );
             assertValues(resp.values(), expectedValues);
         }
