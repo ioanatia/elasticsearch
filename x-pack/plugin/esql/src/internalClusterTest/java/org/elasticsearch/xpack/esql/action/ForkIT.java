@@ -33,6 +33,7 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
                [WHERE content:"fox" ]
                [WHERE content:"dog" ]
             | KEEP id, _fork, content
+            | SORT id, _fork
             """;
         try (var resp = run(query)) {
             assertColumnNames(resp.columns(), List.of("id", "_fork", "content"));
@@ -40,14 +41,14 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
             Iterable<Iterable<Object>> expectedValues = List.of(
                 List.of(3, "fork1", "This dog is really brown"),
                 List.of(4, "fork1", "The dog is brown but this document is very very long"),
-                List.of(6, "fork1", "The quick brown fox jumps over the lazy dog"),
-                List.of(6, "fork0", "The quick brown fox jumps over the lazy dog")
+                List.of(6, "fork0", "The quick brown fox jumps over the lazy dog"),
+                List.of(6, "fork1", "The quick brown fox jumps over the lazy dog")
             );
-            assertValuesInAnyOrder(resp.values(), expectedValues);
+            assertValues(resp.values(), expectedValues);
         }
     }
 
-    public void testSimpleWithSortANDLimitInSecondSubQuery() {
+    public void testSortAndLimitInSecondSubQuery() {
         var query = """
             FROM test
             | WHERE id > 2
@@ -55,19 +56,20 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
                [WHERE content:"fox" ]
                [WHERE content:"dog" | SORT id DESC | LIMIT 1]
             | KEEP id, _fork, content
+            | SORT id, _fork
             """;
         try (var resp = run(query)) {
             assertColumnNames(resp.columns(), List.of("id", "_fork", "content"));
             assertColumnTypes(resp.columns(), List.of("integer", "keyword", "text"));
             Iterable<Iterable<Object>> expectedValues = List.of(
-                List.of(3, "fork1", "This dog is really brown"),
-                List.of(6, "fork0", "The quick brown fox jumps over the lazy dog")
+                List.of(6, "fork0", "The quick brown fox jumps over the lazy dog"),
+                List.of(6, "fork1", "The quick brown fox jumps over the lazy dog")
             );
-            assertValuesInAnyOrder(resp.values(), expectedValues);
+            assertValues(resp.values(), expectedValues);
         }
     }
 
-    public void testSimpleWithSORTANDLimitInBothSubQueries() {
+    public void testSortAndLimitInBothSubQueries() {
         var query = """
             FROM test
             | WHERE id > 0
@@ -75,6 +77,7 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
                [WHERE content:"fox" | SORT id | LIMIT 1]
                [WHERE content:"dog" | SORT id | LIMIT 1]
             | KEEP id, _fork, content
+            | SORT id, _fork
             """;
         try (var resp = run(query)) {
             System.out.println("response=" + resp);
@@ -84,11 +87,11 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
                 List.of(1, "fork0", "This is a brown fox"),
                 List.of(2, "fork1", "This is a brown dog")
             );
-            assertValuesInAnyOrder(resp.values(), expectedValues);
+            assertValues(resp.values(), expectedValues);
         }
     }
 
-    public void testSimpleWithKeepAndSort() {
+    public void testKeepAndSort() {
         var query = """
             FROM test
             | WHERE id > 2

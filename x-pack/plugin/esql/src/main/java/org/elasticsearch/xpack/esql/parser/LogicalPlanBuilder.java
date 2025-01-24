@@ -571,6 +571,19 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
 
     @Override
     public PlanFactory visitForkSubQuery(EsqlBaseParser.ForkSubQueryContext ctx) {
-        return typedParsing(this, ctx.forkSubQueryCommand(), PlanFactory.class);
+        var subCtx = ctx.forkSubQueryCommand();
+        if (subCtx instanceof EsqlBaseParser.SingleForkSubQueryCommandContext sglCtx) {
+            return typedParsing(this, sglCtx.forkSubQueryProcessingCommand(), PlanFactory.class);
+        } else if (subCtx instanceof EsqlBaseParser.CompositeForkSubQueryContext compCtx) {
+            return visitCompositeForkSubQuery(compCtx);
+        } else {
+            throw new AssertionError("Unknown context: " + ctx);
+        }
+    }
+
+    @Override public PlanFactory visitCompositeForkSubQuery(EsqlBaseParser.CompositeForkSubQueryContext ctx) {
+        PlanFactory lowerPlan = ParserUtils.typedParsing(this, ctx.forkSubQueryCommand(), PlanFactory.class);
+        PlanFactory makePlan = typedParsing(this, ctx.forkSubQueryProcessingCommand(), PlanFactory.class);
+        return input -> makePlan.apply(lowerPlan.apply(input));
     }
 }
