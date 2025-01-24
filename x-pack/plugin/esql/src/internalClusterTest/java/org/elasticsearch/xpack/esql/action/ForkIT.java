@@ -140,17 +140,64 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
         }
     }
 
-    public void testKeepAndSort() {
+    public void testWhereWhere() {
+        var query = """
+            FROM test
+            | FORK
+               [WHERE id < 2 | WHERE content:"fox"]
+               [WHERE id > 2 | WHERE content:"dog"]
+            | SORT _fork, id
+            | KEEP _fork, id, content
+            """;
+        try (var resp = run(query)) {
+            System.out.println("response=" + resp);
+            assertColumnNames(resp.columns(), List.of("_fork", "id", "content"));
+            assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of("fork0", 1, "This is a brown fox"),
+                List.of("fork1", 3, "This dog is really brown"),
+                List.of("fork1", 4, "The dog is brown but this document is very very long"),
+                List.of("fork1", 6, "The quick brown fox jumps over the lazy dog")
+            );
+            assertValues(resp.values(), expectedValues);
+        }
+    }
+
+    // org.elasticsearch.xpack.esql.EsqlIllegalArgumentException: unknown physical plan node [OrderExec]
+    public void testWhereSort() {
+        var query = """
+            FROM test
+            | FORK
+               [WHERE content:"fox" | SORT id ]
+               [WHERE content:"dog" | SORT id ]
+            | SORT _fork
+            | KEEP _fork, id, content
+            """;
+        try (var resp = run(query)) {
+            System.out.println("response=" + resp);
+            assertColumnNames(resp.columns(), List.of("_fork", "id", "content"));
+            assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of("fork0", 1, "This is a brown fox"),
+                List.of("fork1", 3, "This dog is really brown"),
+                List.of("fork1", 4, "The dog is brown but this document is very very long"),
+                List.of("fork1", 6, "The quick brown fox jumps over the lazy dog")
+            );
+            assertValues(resp.values(), expectedValues);
+        }
+    }
+
+    // line 5:5: mismatched input 'LIMIT' expecting {'limit', 'sort', 'where'}
+    // org.elasticsearch.xpack.esql.parser.ParsingException: line 5:5: mismatched input 'LIMIT' expecting {'limit', 'sort', 'where'}
+    public void testLimitOnlyInSecondSubQuery() {
         var query = """
             FROM test
             | WHERE id > 2
             | FORK
-               [WHERE content:"fox" ]
-               [WHERE content:"dog" ]
+               [WHERE content:"dog" | SORT id | LIMIT 1]
+               [LIMIT 1]
             | KEEP id, content, _fork
-            | SORT id
             """;
-
         try (var resp = run(query)) {
             System.out.println("response=" + resp);
             // assertColumnNames(resp.columns(), List.of("id", "content", "_fork"));
