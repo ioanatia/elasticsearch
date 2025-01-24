@@ -16,6 +16,8 @@ import org.junit.Before;
 import java.util.List;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
+import static org.elasticsearch.xpack.esql.EsqlTestUtils.getValuesList;
+import static org.hamcrest.Matchers.equalTo;
 
 @TestLogging(value = "org.elasticsearch.xpack.esql:TRACE,org.elasticsearch.compute:TRACE", reason = "debug")
 public class ForkIT extends AbstractEsqlIntegTestCase {
@@ -216,17 +218,16 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
             FROM test METADATA _score
             | WHERE id > 2
             | FORK
-               [WHERE content:"fox" ]
-               [WHERE content:"dog" ]
+               [ WHERE content:"fox" ]
+               [ WHERE content:"dog" ]
             | KEEP id, content, _fork, _score
             | SORT id
             """;
-
         try (var resp = run(query)) {
             System.out.println("response=" + resp);
-            // assertColumnNames(resp.columns(), List.of("id", "content", "_fork"));
-            // assertColumnTypes(resp.columns(), List.of("integer", "text", "keyword"));
-            // assertValues(resp.values(), List.of(List.of(1), List.of(6)));
+            assertColumnNames(resp.columns(), List.of("id", "content", "_fork", "_score"));
+            assertColumnTypes(resp.columns(), List.of("integer", "text", "keyword", "double"));
+            assertThat(getValuesList(resp.values()).size(), equalTo(4)); // just assert that the expected number of results
         }
     }
 
