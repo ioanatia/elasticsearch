@@ -561,6 +561,9 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
     @Override
     public PlanFactory visitForkCommand(EsqlBaseParser.ForkCommandContext ctx) {
         List<PlanFactory> subQueries = visitForkSubQueries(ctx.forkSubQueries());
+        if (subQueries.size() < 2) {
+            throw new ParsingException(source(ctx), "Fork requires at least two branches");
+        }
         return input -> {
             List<LogicalPlan> subPlans = subQueries.stream().map(planFactory -> planFactory.apply(input)).toList();
             LogicalPlan firstQuery = subPlans.get(0);

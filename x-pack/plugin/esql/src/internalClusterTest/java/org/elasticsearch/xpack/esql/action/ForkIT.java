@@ -11,6 +11,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.junit.annotations.TestLogging;
+import org.elasticsearch.xpack.esql.parser.ParsingException;
 import org.junit.Before;
 
 import java.util.List;
@@ -273,6 +274,17 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
             assertColumnTypes(resp.columns(), List.of("integer", "keyword", "text"));
             // TODO ...
         }
+    }
+
+    public void testOneSubQuery() {
+        var query = """
+            FROM test
+            | WHERE id > 2
+            | FORK
+               [ WHERE content:"fox" ]
+            """;
+        var e = expectThrows(ParsingException.class, () -> run(query));
+        assertTrue(e.getMessage().contains("Fork requires at least two branches"));
     }
 
     private void createAndPopulateIndex() {
