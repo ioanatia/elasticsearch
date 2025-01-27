@@ -20,6 +20,7 @@ import org.elasticsearch.xpack.esql.core.util.Holder;
 import org.elasticsearch.xpack.esql.expression.function.fulltext.FullTextFunction;
 import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
+import org.elasticsearch.xpack.esql.plan.logical.Merge;
 import org.elasticsearch.xpack.esql.planner.PlannerUtils;
 
 import java.io.IOException;
@@ -93,6 +94,11 @@ public class QueryBuilderResolver {
     private Set<FullTextFunction> fullTextFunctions(LogicalPlan plan) {
         Set<FullTextFunction> functions = new HashSet<>();
         plan.forEachExpressionDown(FullTextFunction.class, func -> functions.add(func));
+        plan.forEachDown(Merge.class, m -> {
+            m.left().forEachExpressionDown(FullTextFunction.class, func -> functions.add(func));
+            m.right().forEachExpressionDown(FullTextFunction.class, func -> functions.add(func));
+        });
+
         return functions;
     }
 
@@ -100,6 +106,11 @@ public class QueryBuilderResolver {
         Holder<Set<String>> indexNames = new Holder<>();
 
         plan.forEachDown(EsRelation.class, esRelation -> { indexNames.set(esRelation.index().concreteIndices()); });
+
+        plan.forEachDown(Merge.class, merge -> {
+            merge.left().forEachDown(EsRelation.class, esRelation -> { indexNames.set(esRelation.index().concreteIndices()); });
+            merge.right().forEachDown(EsRelation.class, esRelation -> { indexNames.set(esRelation.index().concreteIndices()); });
+        });
 
         return indexNames.get();
     }
@@ -111,6 +122,24 @@ public class QueryBuilderResolver {
             }
             return m;
         });
+        newPlan = newPlan.transformDown(Merge.class, m -> {
+            LogicalPlan left = m.left().transformExpressionsDown(FullTextFunction.class, e -> {
+                if (newQueryBuilders.keySet().contains(e)) {
+                    return e.replaceQueryBuilder(newQueryBuilders.get(e));
+                }
+                return e;
+            });
+
+            LogicalPlan right = m.right().transformExpressionsDown(FullTextFunction.class, e -> {
+                if (newQueryBuilders.keySet().contains(e)) {
+                    return e.replaceQueryBuilder(newQueryBuilders.get(e));
+                }
+                return e;
+            });
+
+            return new Merge(m.source(), left, right);
+        });
+
         // The given plan was already analyzed and optimized, so we set the resulted plan to optimized as well.
         newPlan.setOptimized();
         return newPlan;
