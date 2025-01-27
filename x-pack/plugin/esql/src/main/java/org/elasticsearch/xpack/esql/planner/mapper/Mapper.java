@@ -31,10 +31,12 @@ import org.elasticsearch.xpack.esql.plan.physical.ExchangeExec;
 import org.elasticsearch.xpack.esql.plan.physical.FragmentExec;
 import org.elasticsearch.xpack.esql.plan.physical.HashJoinExec;
 import org.elasticsearch.xpack.esql.plan.physical.LimitExec;
+import org.elasticsearch.xpack.esql.plan.physical.LocalMultiSourceExec;
 import org.elasticsearch.xpack.esql.plan.physical.LocalSourceExec;
 import org.elasticsearch.xpack.esql.plan.physical.LookupJoinExec;
 import org.elasticsearch.xpack.esql.plan.physical.OrderExec;
 import org.elasticsearch.xpack.esql.plan.physical.PhysicalPlan;
+import org.elasticsearch.xpack.esql.plan.physical.ProjectExec;
 import org.elasticsearch.xpack.esql.plan.physical.TopNExec;
 import org.elasticsearch.xpack.esql.plan.physical.UnaryExec;
 
@@ -70,6 +72,10 @@ public class Mapper {
     private PhysicalPlan mapLeaf(LeafPlan leaf) {
         if (leaf instanceof EsRelation esRelation) {
             return new FragmentExec(esRelation);
+        }
+
+        if (leaf instanceof Merge m) {
+            return new LocalMultiSourceExec(m.source(), new FragmentExec(m.left()), new FragmentExec(m.right()), m.output());
         }
 
         return MapperUtils.mapLeaf(leaf);
@@ -210,10 +216,7 @@ public class Mapper {
                 && relation.indexMode() == IndexMode.LOOKUP) {
                 return new LookupJoinExec(join.source(), left, right, config.leftFields(), config.rightFields(), join.rightOutputFields());
             }
-        } else if (bp instanceof Merge mr) {
-            return new FragmentExec(bp);
         }
-
         return MapperUtils.unsupported(bp);
     }
 

@@ -19,35 +19,46 @@ import org.elasticsearch.xpack.esql.io.stream.PlanStreamInput;
 import org.elasticsearch.xpack.esql.plan.logical.local.LocalSupplier;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class LocalMultiSourceExec extends UnaryExec {
+public class LocalMultiSourceExec extends LeafExec {
     public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(
         PhysicalPlan.class,
         "LocalMultiSourceExec",
         LocalMultiSourceExec::new
     );
     private final PhysicalPlan right;
+
+    private final PhysicalPlan left;
     private final List<Attribute> output;
 
     public LocalMultiSourceExec(Source source, PhysicalPlan left, PhysicalPlan right, List<Attribute> output) {
-        super(source, left);
+        super(source);
+        this.left = left;
         this.right = right;
         this.output = output;
     }
 
     public LocalMultiSourceExec(StreamInput in) throws IOException {
-        super(Source.readFrom((PlanStreamInput) in), in.readNamedWriteable(PhysicalPlan.class));
+        super(Source.readFrom((PlanStreamInput) in));
+        this.left = in.readNamedWriteable(PhysicalPlan.class);
         this.right = in.readNamedWriteable(PhysicalPlan.class);
         this.output = in.readNamedWriteableCollectionAsList(Attribute.class);
     }
 
     public List<LocalSupplier> suppliers() {
-        if (right instanceof LocalSourceExec lse) {
-            return List.of(lse.supplier());
+        List<LocalSupplier> suppliers = new ArrayList<>();
+
+        if (left instanceof LocalSourceExec lse) {
+            suppliers.add(lse.supplier());
         }
-        return List.of();
+        if (right instanceof LocalSourceExec lse) {
+            suppliers.add(lse.supplier());
+        }
+
+        return suppliers;
     }
 
     @Override
@@ -58,24 +69,20 @@ public class LocalMultiSourceExec extends UnaryExec {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         Source.EMPTY.writeTo(out);
-        out.writeNamedWriteable(child());
+        out.writeNamedWriteable(left);
         out.writeNamedWriteable(right);
         out.writeNamedWriteableCollection(output);
     }
 
     @Override
     protected NodeInfo<LocalMultiSourceExec> info() {
-        return NodeInfo.create(this, LocalMultiSourceExec::new, child(), right, output);
-    }
-
-    @Override
-    public UnaryExec replaceChild(PhysicalPlan newChild) {
-        return new LocalMultiSourceExec(source(), newChild, right, output);
+        return NodeInfo.create(this, LocalMultiSourceExec::new, left, right, output);
     }
 
     @Override
     public AttributeSet references() {
-        return Expressions.references(output.stream().filter(at -> at.name().equals("_fork") == false).toList());
+        return Expressions.references(List.of());
+        // return Expressions.references(output.stream().filter(at -> at.name().equals("_fork") == false).toList());
     }
 
     @Override
@@ -84,18 +91,22 @@ public class LocalMultiSourceExec extends UnaryExec {
         return output;
     }
 
+    public PhysicalPlan left() { return left; }
+
+    public PhysicalPlan right() { return right; }
+
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode());
+        return Objects.hash(source().hashCode(), left, right);
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        if (super.equals(o) == false) {
-            return false;
-        }
-        return true;
+        LocalMultiSourceExec other = (LocalMultiSourceExec) o;
+        return Objects.equals(this.source(), other.source())
+            && Objects.equals(this.left, other.left)
+            && Objects.equals(this.right, other.right);
     }
 }

@@ -565,7 +565,7 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
         return input -> {
             LogicalPlan child = firstQuery.apply(input);
             LogicalPlan other = secondQuery.apply(input);
-            return new Fork(source(ctx), child, child, other, new UnresolvedAttribute(source(ctx), "_fork"));
+            return new Fork(source(ctx), child, child, other);
         };
     }
 

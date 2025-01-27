@@ -73,6 +73,8 @@ import org.elasticsearch.xpack.esql.plan.logical.local.LocalRelation;
 import org.elasticsearch.xpack.esql.plan.logical.local.LocalSupplier;
 import org.elasticsearch.xpack.esql.plan.physical.EstimatesRowSize;
 import org.elasticsearch.xpack.esql.plan.physical.FragmentExec;
+import org.elasticsearch.xpack.esql.plan.physical.LocalMultiSourceExec;
+import org.elasticsearch.xpack.esql.plan.physical.LocalSourceExec;
 import org.elasticsearch.xpack.esql.plan.physical.PhysicalPlan;
 import org.elasticsearch.xpack.esql.planner.mapper.Mapper;
 import org.elasticsearch.xpack.esql.stats.PlanningMetrics;
@@ -210,22 +212,49 @@ public class EsqlSession {
 
         // Currently the inlinestats are limited and supported as streaming operators, thus present inside the fragment as logical plans
         // Below they get collected, translated into a separate, coordinator based plan and the results 'broadcasted' as a local relation
-        physicalPlan.forEachUp(FragmentExec.class, f -> {
-            f.fragment().forEachUp(BinaryPlan.class, bp -> {
-                LogicalPlan subplan = null;
-                if (bp instanceof InlineJoin ij) {
-                    // extract the right side of the plan and replace its source
-                    subplan = InlineJoin.replaceStub(ij.left(), ij.right());
-                } else if (bp instanceof Merge mr) {
-                    subplan = mr.right();
-                }
-                if (subplan != null) {
-                    // mark the new root node as optimized
-                    subplan.setOptimized();
+        physicalPlan = physicalPlan.transformUp(PhysicalPlan.class, p -> {
+            if (p instanceof FragmentExec f) {
+                f.fragment().forEachUp(LogicalPlan.class, bp -> {
+                    LogicalPlan subplan = null;
+                    if (bp instanceof InlineJoin ij) {
+                        // extract the right side of the plan and replace its source
+                        subplan = InlineJoin.replaceStub(ij.left(), ij.right());
+                    } else if (bp instanceof Merge mr) {
+                        subplan = mr.right();
+                    }
+                    if (subplan != null) {
+                        // mark the new root node as optimized
+                        subplan.setOptimized();
+                        PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
+                        subplans.add(new PlanTuple(subqueryPlan, subplan));
+                    }
+                });
+            }
+            if (p instanceof LocalMultiSourceExec m) {
+                PhysicalPlan left = m.left();
+                PhysicalPlan right = m.right();
+
+                if (left instanceof FragmentExec f) {
+                    LogicalPlan subplan = f.fragment();
+                    subplan.setAnalyzed();
+                    subplan = optimizedPlan(subplan);
                     PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
-                    subplans.add(new PlanTuple(subqueryPlan, bp.right()));
+                    subplans.add(new PlanTuple(subqueryPlan, subplan));
+                    left = new FragmentExec(subplan);
                 }
-            });
+                if (right instanceof FragmentExec f) {
+                    LogicalPlan subplan = f.fragment();
+                    subplan.setAnalyzed();
+                    subplan = optimizedPlan(subplan);
+                    PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
+                    subplans.add(new PlanTuple(subqueryPlan, subplan));
+                    right = new FragmentExec(subplan);
+                }
+
+                return new LocalMultiSourceExec(m.source(), left, right, m.output());
+            }
+
+            return p;
         });
 
         Iterator<PlanTuple> iterator = subplans.iterator();
@@ -256,17 +285,32 @@ public class EsqlSession {
                 LocalRelation resultWrapper = resultToPlan(tuple.logical, result);
 
                 // replace the original logical plan with the backing result
-                final PhysicalPlan newPlan = plan.transformUp(FragmentExec.class, f -> {
-                    LogicalPlan frag = f.fragment();
+                final PhysicalPlan newPlan = plan.transformUp(PhysicalPlan.class, p -> {
+                    if (p instanceof FragmentExec f) {
+                        LogicalPlan frag = f.fragment();
 
-                    return f.withFragment(frag.transformUp(BinaryPlan.class, bp -> {
-                        if (bp instanceof InlineJoin ij && ij.right() == tuple.logical) {
-                            return InlineJoin.inlineData(ij, resultWrapper);
-                        } else if (bp instanceof Merge mr && mr.right() == tuple.logical) {
-                            return Merge.subPlanData(mr, resultWrapper);
+                        return f.withFragment(frag.transformUp(LogicalPlan.class, bp -> {
+                            if (bp instanceof InlineJoin ij && ij.right() == tuple.logical) {
+                                return InlineJoin.inlineData(ij, resultWrapper);
+                            } else if (bp instanceof Merge mr && mr.right() == tuple.logical) {
+                                return Merge.subPlanData(mr, resultWrapper);
+                            }
+                            return bp;
+                        }));
+                    }
+                    if (p instanceof LocalMultiSourceExec m) {
+                        if (m.right() instanceof FragmentExec f && f.fragment() == tuple.logical) {
+                            var resultsExec = new LocalSourceExec(resultWrapper.source(), resultWrapper.output(), resultWrapper.supplier());
+                            return new LocalMultiSourceExec(m.source(), m.left(), resultsExec, m.output());
                         }
-                        return bp;
-                    }));
+                        if (m.left() instanceof FragmentExec f && f.fragment() == tuple.logical) {
+                            var resultsExec = new LocalSourceExec(resultWrapper.source(), resultWrapper.output(), resultWrapper.supplier());
+                            return new LocalMultiSourceExec(m.source(), resultsExec, m.right(), m.output());
+                        }
+                    }
+
+
+                    return p;
                 });
                 if (subPlanIterator.hasNext() == false) {
                     runner.run(newPlan, next.delegateFailureAndWrap((finalListener, finalResult) -> {

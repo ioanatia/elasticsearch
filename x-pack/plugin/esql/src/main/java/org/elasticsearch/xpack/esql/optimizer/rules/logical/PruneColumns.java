@@ -93,15 +93,15 @@ public final class PruneColumns extends Rule<LogicalPlan, LogicalPlan> {
                     }
                 } else if (p instanceof Eval eval) {
                     var remaining = removeUnused(eval.fields(), used);
-                    // no fields, no eval
-                    if (remaining != null) {
-                        if (remaining.isEmpty()) {
-                            p = eval.child();
-                            recheck = true;
-                        } else {
-                            p = new Eval(eval.source(), eval.child(), remaining);
-                        }
-                    }
+//                    // no fields, no eval
+//                    if (remaining != null) {
+//                        if (remaining.isEmpty()) {
+//                            p = eval.child();
+//                            recheck = true;
+//                        } else {
+//                            p = new Eval(eval.source(), eval.child(), remaining);
+//                        }
+//                    }
                 } else if (p instanceof EsRelation esRelation && esRelation.indexMode() == IndexMode.LOOKUP) {
                     // Normally, pruning EsRelation has no effect because InsertFieldExtraction only extracts the required fields, anyway.
                     // The field extraction for LOOKUP JOIN works differently, however - we extract all fields (other than the join key)

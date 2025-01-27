@@ -65,6 +65,17 @@ public class LocalMapper {
             return new EsSourceExec(esRelation);
         }
 
+        if (leaf instanceof Merge p) {
+            PhysicalPlan left = map(p.left());
+            PhysicalPlan right = map(p.right());
+
+            // align the input and the output for the LocalMultiSourceOperator
+            // we add a ProjectExec on the main branch to reoder the output
+            PhysicalPlan project = new ProjectExec(p.source(), left, p.output());
+
+            return new LocalMultiSourceExec(p.source(), project, right, p.output());
+        }
+
         return MapperUtils.mapLeaf(leaf);
     }
 
@@ -125,21 +136,6 @@ public class LocalMapper {
             if (right instanceof EsSourceExec source && source.indexMode() == IndexMode.LOOKUP) {
                 return new LookupJoinExec(join.source(), left, right, config.leftFields(), config.rightFields(), join.rightOutputFields());
             }
-        }
-        if (binary instanceof Merge) {
-            // TODO: obviously not enough, but let's roll with it
-
-            PhysicalPlan left = map(binary.left());
-            PhysicalPlan right = map(binary.right());
-
-            // align the input and the output for the LocalMultiSourceOperator
-            // we add a ProjectExec on the main branch to reoder the output
-            // the last element of  binary.output is the discriminator column which we don't include in ProjectExec
-            List<Attribute> output = binary.output();
-            List<Attribute> input = binary.output().subList(0, output.size() - 1);
-            PhysicalPlan project = new ProjectExec(binary.source(), left, input);
-
-            return new LocalMultiSourceExec(binary.source(), project, right, binary.output());
         }
 
         return MapperUtils.unsupported(binary);

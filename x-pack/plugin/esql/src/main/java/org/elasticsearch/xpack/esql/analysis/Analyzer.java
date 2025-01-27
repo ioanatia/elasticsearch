@@ -76,6 +76,7 @@ import org.elasticsearch.xpack.esql.plan.logical.LeafPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Limit;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Lookup;
+import org.elasticsearch.xpack.esql.plan.logical.Merge;
 import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
 import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.Rename;
@@ -186,9 +187,30 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
         LogicalPlan forkAnalyzed = plan.transformDown(Fork.class, fr -> {
             LogicalPlan copySecond = fr.second()
                 .transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
+
+            copySecond = new Eval(
+                fr.source(),
+                copySecond,
+                List.of(new Alias(fr.source(), "_fork", new Literal(fr.source(), "fork1", KEYWORD)))
+            );
+
             LogicalPlan analyzedSecond = execute(copySecond);
 
-            return new Fork(fr.source(), fr.child(), fr.child(), analyzedSecond, fr.discriminator());
+            LogicalPlan copyFirst = new Eval(
+                fr.source(),
+                fr.child(),
+                List.of(new Alias(fr.source(), "_fork", new Literal(fr.source(), "fork0", KEYWORD)))
+            );
+
+            List<Attribute> output = new ArrayList<>();
+            for(Attribute at : analyzedSecond.output()) {
+                output.add(new UnresolvedAttribute(fr.source(), at.name()));
+            }
+
+            copyFirst = new Keep(fr.source(), copyFirst, output);
+            LogicalPlan analyzedFirst = execute(copyFirst);
+
+            return new Merge(fr.source(), analyzedFirst, analyzedSecond);
         });
 
         return verify(execute(forkAnalyzed), gatherPreAnalysisMetrics(plan, partialMetrics));
@@ -512,10 +534,6 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
                 return resolveLookupJoin(j);
             }
 
-            if (plan instanceof Fork f) {
-                return resolveFork(f, childrenOutput);
-            }
-
             return plan.transformExpressionsOnly(UnresolvedAttribute.class, ua -> maybeResolveAttribute(ua, childrenOutput));
         }
 
@@ -715,22 +733,6 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
             }
             return resolved;
         }
-
-        // TODO: this is not right, fix the resolution
-        private LogicalPlan resolveFork(Fork fork, List<Attribute> childrenOutput) {
-            if (fork.discriminator() instanceof UnresolvedAttribute ua) {
-                Attribute discriminator = maybeResolveAttribute(ua, childrenOutput);
-
-                if (discriminator instanceof UnresolvedAttribute) {
-                    discriminator = new ReferenceAttribute(fork.source(), "_fork", KEYWORD);
-                }
-
-                return new Fork(fork.source(), fork.child(), fork.first(), fork.second(), discriminator);
-            }
-
-            return fork;
-        }
-
         private Attribute maybeResolveAttribute(UnresolvedAttribute ua, List<Attribute> childrenOutput) {
             return maybeResolveAttribute(ua, childrenOutput, log);
         }

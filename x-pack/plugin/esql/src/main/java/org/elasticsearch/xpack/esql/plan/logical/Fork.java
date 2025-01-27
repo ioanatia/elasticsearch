@@ -21,19 +21,16 @@ import java.util.List;
 import java.util.Objects;
 
 // HEGO: remove based on Lookup
-public class Fork extends UnaryPlan implements SurrogateLogicalPlan {
+public class Fork extends UnaryPlan {
     public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(LogicalPlan.class, "Fork", Fork::new);
     private final LogicalPlan first;
     private final LogicalPlan second;
     private List<Attribute> lazyOutput;
 
-    private final Attribute discriminator;
-
-    public Fork(Source source, LogicalPlan child, LogicalPlan first, LogicalPlan second, Attribute discriminator) {
+    public Fork(Source source, LogicalPlan child, LogicalPlan first, LogicalPlan second) {
         super(source, child);
         this.first = first;
         this.second = second;
-        this.discriminator = discriminator;
         // this.tableName = tableName;
         // this.matchFields = matchFields;
         // this.localRelation = localRelation;
@@ -43,7 +40,6 @@ public class Fork extends UnaryPlan implements SurrogateLogicalPlan {
         super(Source.readFrom((PlanStreamInput) in), in.readNamedWriteable(LogicalPlan.class));
         this.first = null;
         this.second = null;
-        this.discriminator = null;
         // this.tableName = in.readNamedWriteable(Expression.class);
         // this.matchFields = in.readNamedWriteableCollectionAsList(Attribute.class);
         // this.localRelation = in.readBoolean() ? new LocalRelation(in) : null;
@@ -68,11 +64,6 @@ public class Fork extends UnaryPlan implements SurrogateLogicalPlan {
         return ENTRY.name;
     }
 
-    @Override
-    public LogicalPlan surrogate() {
-        return new Merge(source(), first, second, discriminator);
-    }
-
     public LogicalPlan first() {
         return first;
     }
@@ -83,7 +74,7 @@ public class Fork extends UnaryPlan implements SurrogateLogicalPlan {
 
     @Override
     public UnaryPlan replaceChild(LogicalPlan newChild) {
-        return new Fork(source(), newChild, newChild, second, discriminator);
+        return new Fork(source(), newChild, newChild, second);
     }
 
     @Override
@@ -93,25 +84,20 @@ public class Fork extends UnaryPlan implements SurrogateLogicalPlan {
 
     @Override
     public boolean expressionsResolved() {
-        return first.expressionsResolved() && second.expressionsResolved() && discriminator.resolved();
+        return first.expressionsResolved() && second.expressionsResolved();
     }
 
     @Override
     protected NodeInfo<? extends LogicalPlan> info() {
-        return NodeInfo.create(this, Fork::new, child(), first, second, discriminator);
+        return NodeInfo.create(this, Fork::new, child(), first, second);
     }
 
     @Override
     public List<Attribute> output() {
         if (lazyOutput == null) {
             lazyOutput = new ArrayList<>(first.output()); // assumes first and second are identical
-            lazyOutput.add(discriminator);
         }
         return lazyOutput;
-    }
-
-    public Attribute discriminator() {
-        return discriminator;
     }
 
     @Override
@@ -127,12 +113,11 @@ public class Fork extends UnaryPlan implements SurrogateLogicalPlan {
         }
         Fork other = (Fork) o;
         return Objects.equals(first, other.first)
-            && Objects.equals(second, other.second)
-            && Objects.equals(discriminator, other.discriminator);
+            && Objects.equals(second, other.second);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), first, second, discriminator);
+        return Objects.hash(super.hashCode(), first, second);
     }
 }

@@ -165,14 +165,13 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
         }
     }
 
-    // org.elasticsearch.xpack.esql.EsqlIllegalArgumentException: unknown physical plan node [OrderExec]
     public void testWhereSort() {
         var query = """
             FROM test
             | FORK
                [WHERE content:"fox" | SORT id ]
                [WHERE content:"dog" | SORT id ]
-            | SORT _fork
+            | SORT _fork, id
             | KEEP _fork, id, content
             """;
         try (var resp = run(query)) {
@@ -181,6 +180,32 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
             assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
             Iterable<Iterable<Object>> expectedValues = List.of(
                 List.of("fork0", 1, "This is a brown fox"),
+                List.of("fork0", 6, "The quick brown fox jumps over the lazy dog"),
+                List.of("fork1", 2, "This is a brown dog"),
+                List.of("fork1", 3, "This dog is really brown"),
+                List.of("fork1", 4, "The dog is brown but this document is very very long"),
+                List.of("fork1", 6, "The quick brown fox jumps over the lazy dog")
+            );
+            assertValues(resp.values(), expectedValues);
+        }
+    }
+
+    public void testWhereSortOnlyInFork() {
+        var query = """
+            FROM test
+            | FORK
+               [WHERE content:"fox" | SORT id ]
+               [WHERE content:"dog" | SORT id ]
+            | KEEP _fork, id, content
+            """;
+        try (var resp = run(query)) {
+            System.out.println("response=" + resp);
+            assertColumnNames(resp.columns(), List.of("_fork", "id", "content"));
+            assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of("fork0", 1, "This is a brown fox"),
+                List.of("fork0", 6, "The quick brown fox jumps over the lazy dog"),
+                List.of("fork1", 2, "This is a brown dog"),
                 List.of("fork1", 3, "This dog is really brown"),
                 List.of("fork1", 4, "The dog is brown but this document is very very long"),
                 List.of("fork1", 6, "The quick brown fox jumps over the lazy dog")
