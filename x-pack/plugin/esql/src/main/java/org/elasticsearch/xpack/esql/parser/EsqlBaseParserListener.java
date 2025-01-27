@@ -972,6 +972,16 @@ public interface EsqlBaseParserListener extends ParseTreeListener {
    */
   void exitForkCommand(EsqlBaseParser.ForkCommandContext ctx);
   /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#forkSubQueries}.
+   * @param ctx the parse tree
+   */
+  void enterForkSubQueries(EsqlBaseParser.ForkSubQueriesContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#forkSubQueries}.
+   * @param ctx the parse tree
+   */
+  void exitForkSubQueries(EsqlBaseParser.ForkSubQueriesContext ctx);
+  /**
    * Enter a parse tree produced by {@link EsqlBaseParser#forkSubQuery}.
    * @param ctx the parse tree
    */

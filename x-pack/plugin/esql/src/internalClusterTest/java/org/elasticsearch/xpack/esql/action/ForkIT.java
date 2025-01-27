@@ -256,6 +256,25 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
         }
     }
 
+    // TODO: this just verifies that the grammar accepts 3 subqueries
+    public void testThreeSubQueries() {
+        var query = """
+            FROM test
+            | WHERE id > 2
+            | FORK
+               [WHERE content:"fox" ]
+               [WHERE content:"dog" ]
+               [WHERE content:"cat" ]
+            | KEEP id, _fork, content
+            | SORT id, _fork
+            """;
+        try (var resp = run(query)) {
+            assertColumnNames(resp.columns(), List.of("id", "_fork", "content"));
+            assertColumnTypes(resp.columns(), List.of("integer", "keyword", "text"));
+            // TODO ...
+        }
+    }
+
     private void createAndPopulateIndex() {
         var indexName = "test";
         var client = client().admin().indices();

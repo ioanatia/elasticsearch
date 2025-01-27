@@ -1093,6 +1093,18 @@ public class EsqlBaseParserBaseListener implements EsqlBaseParserListener {
    *
    * <p>The default implementation does nothing.</p>
    */
+  @Override public void enterForkSubQueries(EsqlBaseParser.ForkSubQueriesContext ctx) { }
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation does nothing.</p>
+   */
+  @Override public void exitForkSubQueries(EsqlBaseParser.ForkSubQueriesContext ctx) { }
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation does nothing.</p>
+   */
   @Override public void enterForkSubQuery(EsqlBaseParser.ForkSubQueryContext ctx) { }
   /**
    * {@inheritDoc}

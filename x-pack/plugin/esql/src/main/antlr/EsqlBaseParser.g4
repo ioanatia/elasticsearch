@@ -333,7 +333,11 @@ joinPredicate
     ;
 
 forkCommand
-    : DEV_FORK firstQuery=forkSubQuery secondQuery=forkSubQuery
+    : DEV_FORK forkSubQueries
+    ;
+
+forkSubQueries
+    : (forkSubQuery)+
     ;
 
 forkSubQuery

@@ -560,13 +560,22 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
 
     @Override
     public PlanFactory visitForkCommand(EsqlBaseParser.ForkCommandContext ctx) {
-        PlanFactory firstQuery = visitForkSubQuery(ctx.firstQuery);
-        PlanFactory secondQuery = visitForkSubQuery(ctx.secondQuery);
+        List<PlanFactory> subQueries = visitForkSubQueries(ctx.forkSubQueries());
         return input -> {
-            LogicalPlan child = firstQuery.apply(input);
-            LogicalPlan other = secondQuery.apply(input);
-            return new Fork(source(ctx), child, child, other);
+            List<LogicalPlan> subPlans = subQueries.stream().map(planFactory -> planFactory.apply(input)).toList();
+            LogicalPlan firstQuery = subPlans.get(0);
+            LogicalPlan other = subPlans.get(1);
+            return new Fork(source(ctx), firstQuery, firstQuery, other);
         };
+    }
+
+    @Override public List<PlanFactory> visitForkSubQueries(EsqlBaseParser.ForkSubQueriesContext ctx) {
+        var subQueriesCtx = ctx.forkSubQuery();
+        ArrayList<PlanFactory> list = new ArrayList<>();
+        for (var subQueryCtx : subQueriesCtx) {
+            list.add(visitForkSubQuery(subQueryCtx));
+        }
+        return List.copyOf(list);
     }
 
     @Override
