@@ -14,7 +14,9 @@ import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xpack.esql.parser.ParsingException;
 import org.junit.Before;
 
+import java.util.Iterator;
 import java.util.List;
+import java.util.function.Predicate;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.xpack.esql.EsqlTestUtils.getValuesList;
@@ -308,33 +310,44 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
         }
     }
 
-
-    // TODO: order of id in subqueries SORT ASC is not preserved. It should be, right?
+    // Tests that sort order is preserved within each fork
+    // subquery, without any subsequent overall stream sort
     public void testFourSubQueriesWithSortAndLimit() {
         var query = """
             FROM test
             | FORK
                [ WHERE id > 0 | SORT id DESC | LIMIT 2]
                [ WHERE id > 1 | SORT id ASC  | LIMIT 3]
-               [ WHERE id < 2 | SORT id DESC | LIMIT 2]
-               [ WHERE id > 3 | SORT id ASC  | LIMIT 2]
-            | SORT _fork
+               [ WHERE id < 3 | SORT id DESC | LIMIT 2]
+               [ WHERE id > 2 | SORT id ASC  | LIMIT 3]
             | KEEP _fork, id, content
             """;
         try (var resp = run(query)) {
             assertColumnNames(resp.columns(), List.of("_fork", "id", "content"));
             assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
-            Iterable<Iterable<Object>> expectedValues = List.of(
+            Iterable<Iterable<Object>> fork0 = List.of(
                 List.of("fork0", 6, "The quick brown fox jumps over the lazy dog"),
-                List.of("fork0", 5, "There is also a white cat"),
+                List.of("fork0", 5, "There is also a white cat")
+            );
+            Iterable<Iterable<Object>> fork1 = List.of(
                 List.of("fork1", 2, "This is a brown dog"),
                 List.of("fork1", 3, "This dog is really brown"),
-                List.of("fork1", 4, "The dog is brown but this document is very very long"),
-                List.of("fork2", 1, "This is a brown fox"),
+                List.of("fork1", 4, "The dog is brown but this document is very very long")
+            );
+            Iterable<Iterable<Object>> fork2 = List.of(
+                List.of("fork2", 2, "This is a brown dog"),
+                List.of("fork2", 1, "This is a brown fox")
+            );
+            Iterable<Iterable<Object>> fork3 = List.of(
+                List.of("fork3", 3, "This dog is really brown"),
                 List.of("fork3", 4, "The dog is brown but this document is very very long"),
                 List.of("fork3", 5, "There is also a white cat")
             );
-            assertValues(resp.values(), expectedValues);
+            assertValues(valuesFilter(resp.values(), row -> row.next().equals("fork0")), fork0);
+            assertValues(valuesFilter(resp.values(), row -> row.next().equals("fork1")), fork1);
+            assertValues(valuesFilter(resp.values(), row -> row.next().equals("fork2")), fork2);
+            assertValues(valuesFilter(resp.values(), row -> row.next().equals("fork3")), fork3);
+            assertThat(getValuesList(resp.values()).size(), equalTo(10));
         }
     }
 
@@ -366,5 +379,9 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
             .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
             .get();
         ensureYellow(indexName);
+    }
+
+    static Iterator<Iterator<Object>> valuesFilter(Iterator<Iterator<Object>> values, Predicate<Iterator<Object>> filter) {
+        return getValuesList(values).stream().filter(row -> filter.test(row.iterator())).map(List::iterator).toList().iterator();
     }
 }
