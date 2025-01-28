@@ -184,33 +184,35 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
     public LogicalPlan analyze(LogicalPlan plan) {
         BitSet partialMetrics = new BitSet(FeatureMetric.values().length);
 
+        List<LogicalPlan> analyzedPlans = new ArrayList<>();
+
         LogicalPlan forkAnalyzed = plan.transformDown(Fork.class, fr -> {
-            LogicalPlan copySecond = fr.second()
-                .transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
 
-            copySecond = new Eval(
-                fr.source(),
-                copySecond,
-                List.of(new Alias(fr.source(), "_fork", new Literal(fr.source(), "fork1", KEYWORD)))
-            );
+            int count = 0;
+            for (var subPlan : fr.subPlans()) {
+                LogicalPlan subPlanCopy = subPlan
+                    .transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
 
-            LogicalPlan analyzedSecond = execute(copySecond);
+                String forkValue = "fork" + count++;
+                subPlanCopy = new Eval(
+                    fr.source(),
+                    subPlanCopy,
+                    List.of(new Alias(fr.source(), "_fork", new Literal(fr.source(), forkValue, KEYWORD)))
+                );
 
-            LogicalPlan copyFirst = new Eval(
-                fr.source(),
-                fr.child(),
-                List.of(new Alias(fr.source(), "_fork", new Literal(fr.source(), "fork0", KEYWORD)))
-            );
-
-            List<Attribute> output = new ArrayList<>();
-            for(Attribute at : analyzedSecond.output()) {
-                output.add(new UnresolvedAttribute(fr.source(), at.name()));
+                LogicalPlan analyzedCopy = execute(subPlanCopy);
+                analyzedPlans.add(analyzedCopy);
             }
 
-            copyFirst = new Keep(fr.source(), copyFirst, output);
-            LogicalPlan analyzedFirst = execute(copyFirst);
+//            List<Attribute> output = new ArrayList<>();
+//            for(Attribute at : analyzedPlans.getFirst().output()) {
+//                output.add(new UnresolvedAttribute(fr.source(), at.name()));
+//            }
+//
+//            copyFirst = new Keep(fr.source(), copyFirst, output);
+//            LogicalPlan analyzedFirst = execute(copyFirst);
 
-            return new Merge(fr.source(), analyzedFirst, analyzedSecond);
+            return new Merge(fr.source(), analyzedPlans);
         });
 
         return verify(execute(forkAnalyzed), gatherPreAnalysisMetrics(plan, partialMetrics));

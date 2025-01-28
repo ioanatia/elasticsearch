@@ -19,46 +19,39 @@ import org.elasticsearch.xpack.esql.io.stream.PlanStreamInput;
 import org.elasticsearch.xpack.esql.plan.logical.local.LocalSupplier;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 public class LocalMultiSourceExec extends LeafExec {
+
     public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(
         PhysicalPlan.class,
         "LocalMultiSourceExec",
         LocalMultiSourceExec::new
     );
-    private final PhysicalPlan right;
 
-    private final PhysicalPlan left;
+    private final List<? extends PhysicalPlan> physSubPlans;
     private final List<Attribute> output;
 
-    public LocalMultiSourceExec(Source source, PhysicalPlan left, PhysicalPlan right, List<Attribute> output) {
+    public LocalMultiSourceExec(Source source, List<? extends PhysicalPlan> physSubPlans, List<Attribute> output) {
         super(source);
-        this.left = left;
-        this.right = right;
+        this.physSubPlans = physSubPlans;
         this.output = output;
     }
 
     public LocalMultiSourceExec(StreamInput in) throws IOException {
         super(Source.readFrom((PlanStreamInput) in));
-        this.left = in.readNamedWriteable(PhysicalPlan.class);
-        this.right = in.readNamedWriteable(PhysicalPlan.class);
+        this.physSubPlans = null; //in.readCollectionAsList(PhysicalPlan::new);
+        //this.right = in.readNamedWriteable(PhysicalPlan.class);
         this.output = in.readNamedWriteableCollectionAsList(Attribute.class);
     }
 
     public List<LocalSupplier> suppliers() {
-        List<LocalSupplier> suppliers = new ArrayList<>();
-
-        if (left instanceof LocalSourceExec lse) {
-            suppliers.add(lse.supplier());
-        }
-        if (right instanceof LocalSourceExec lse) {
-            suppliers.add(lse.supplier());
-        }
-
-        return suppliers;
+        return physSubPlans.stream()
+            .filter(p -> LocalSourceExec.class.isAssignableFrom(p.getClass()))
+            .map(LocalSourceExec.class::cast)
+            .map(LocalSourceExec::supplier)
+            .toList();
     }
 
     @Override
@@ -69,14 +62,13 @@ public class LocalMultiSourceExec extends LeafExec {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         Source.EMPTY.writeTo(out);
-        out.writeNamedWriteable(left);
-        out.writeNamedWriteable(right);
+        out.writeCollection(physSubPlans);
         out.writeNamedWriteableCollection(output);
     }
 
     @Override
     protected NodeInfo<LocalMultiSourceExec> info() {
-        return NodeInfo.create(this, LocalMultiSourceExec::new, left, right, output);
+        return NodeInfo.create(this, LocalMultiSourceExec::new, physSubPlans, output);
     }
 
     @Override
@@ -91,13 +83,13 @@ public class LocalMultiSourceExec extends LeafExec {
         return output;
     }
 
-    public PhysicalPlan left() { return left; }
-
-    public PhysicalPlan right() { return right; }
+    public List<? extends PhysicalPlan> subPlans() {
+        return physSubPlans;
+    }
 
     @Override
     public int hashCode() {
-        return Objects.hash(source().hashCode(), left, right);
+        return Objects.hash(source().hashCode(), physSubPlans);
     }
 
     @Override
@@ -106,7 +98,6 @@ public class LocalMultiSourceExec extends LeafExec {
         if (o == null || getClass() != o.getClass()) return false;
         LocalMultiSourceExec other = (LocalMultiSourceExec) o;
         return Objects.equals(this.source(), other.source())
-            && Objects.equals(this.left, other.left)
-            && Objects.equals(this.right, other.right);
+            && Objects.equals(this.physSubPlans, other.physSubPlans);
     }
 }

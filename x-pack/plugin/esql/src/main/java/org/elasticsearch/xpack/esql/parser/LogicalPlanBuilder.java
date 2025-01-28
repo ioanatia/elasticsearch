@@ -566,9 +566,7 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
         }
         return input -> {
             List<LogicalPlan> subPlans = subQueries.stream().map(planFactory -> planFactory.apply(input)).toList();
-            LogicalPlan firstQuery = subPlans.get(0);
-            LogicalPlan other = subPlans.get(1);
-            return new Fork(source(ctx), firstQuery, firstQuery, other);
+            return new Fork(source(ctx), input, subPlans);
         };
     }
 

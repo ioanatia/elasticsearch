@@ -24,8 +24,10 @@ import org.elasticsearch.xpack.esql.plan.logical.Merge;
 import org.elasticsearch.xpack.esql.planner.PlannerUtils;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -94,10 +96,7 @@ public class QueryBuilderResolver {
     private Set<FullTextFunction> fullTextFunctions(LogicalPlan plan) {
         Set<FullTextFunction> functions = new HashSet<>();
         plan.forEachExpressionDown(FullTextFunction.class, func -> functions.add(func));
-        plan.forEachDown(Merge.class, m -> {
-            m.left().forEachExpressionDown(FullTextFunction.class, func -> functions.add(func));
-            m.right().forEachExpressionDown(FullTextFunction.class, func -> functions.add(func));
-        });
+        plan.forEachDown(Merge.class, m -> m.subPlans().forEach(p -> p.forEachExpressionDown(FullTextFunction.class, functions::add)));
 
         return functions;
     }
@@ -108,8 +107,9 @@ public class QueryBuilderResolver {
         plan.forEachDown(EsRelation.class, esRelation -> { indexNames.set(esRelation.index().concreteIndices()); });
 
         plan.forEachDown(Merge.class, merge -> {
-            merge.left().forEachDown(EsRelation.class, esRelation -> { indexNames.set(esRelation.index().concreteIndices()); });
-            merge.right().forEachDown(EsRelation.class, esRelation -> { indexNames.set(esRelation.index().concreteIndices()); });
+            merge.subPlans().forEach(p -> p.forEachDown(EsRelation.class,
+                esRelation -> { indexNames.set(esRelation.index().concreteIndices()); }
+            ));
         });
 
         return indexNames.get();
@@ -123,21 +123,17 @@ public class QueryBuilderResolver {
             return m;
         });
         newPlan = newPlan.transformDown(Merge.class, m -> {
-            LogicalPlan left = m.left().transformExpressionsDown(FullTextFunction.class, e -> {
-                if (newQueryBuilders.keySet().contains(e)) {
-                    return e.replaceQueryBuilder(newQueryBuilders.get(e));
-                }
-                return e;
-            });
-
-            LogicalPlan right = m.right().transformExpressionsDown(FullTextFunction.class, e -> {
-                if (newQueryBuilders.keySet().contains(e)) {
-                    return e.replaceQueryBuilder(newQueryBuilders.get(e));
-                }
-                return e;
-            });
-
-            return new Merge(m.source(), left, right);
+            List<LogicalPlan> newSubPlans = new ArrayList<>();
+            for (var subPlan : m.subPlans()) {
+                LogicalPlan newSubPlan = subPlan.transformExpressionsDown(FullTextFunction.class, e -> {
+                    if (newQueryBuilders.keySet().contains(e)) {
+                        return e.replaceQueryBuilder(newQueryBuilders.get(e));
+                    }
+                    return e;
+                });
+                newSubPlans.add(newSubPlan);
+            }
+            return new Merge(m.source(), newSubPlans);
         });
 
         // The given plan was already analyzed and optimized, so we set the resulted plan to optimized as well.

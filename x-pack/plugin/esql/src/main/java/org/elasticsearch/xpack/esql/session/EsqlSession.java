@@ -220,7 +220,7 @@ public class EsqlSession {
                         // extract the right side of the plan and replace its source
                         subplan = InlineJoin.replaceStub(ij.left(), ij.right());
                     } else if (bp instanceof Merge mr) {
-                        subplan = mr.right();
+                        // subplan = mr.right();  TODO
                     }
                     if (subplan != null) {
                         // mark the new root node as optimized
@@ -231,27 +231,19 @@ public class EsqlSession {
                 });
             }
             if (p instanceof LocalMultiSourceExec m) {
-                PhysicalPlan left = m.left();
-                PhysicalPlan right = m.right();
-
-                if (left instanceof FragmentExec f) {
-                    LogicalPlan subplan = f.fragment();
-                    subplan.setAnalyzed();
-                    subplan = optimizedPlan(subplan);
-                    PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
-                    subplans.add(new PlanTuple(subqueryPlan, subplan));
-                    left = new FragmentExec(subplan);
+                List<PhysicalPlan> newSubPlans = new ArrayList<>();
+                for (var plan : m.subPlans()) {
+                    if (plan instanceof FragmentExec f) {
+                        LogicalPlan subplan = f.fragment();
+                        subplan.setAnalyzed();
+                        subplan = optimizedPlan(subplan);
+                        PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
+                        subplans.add(new PlanTuple(subqueryPlan, subplan));
+                        plan = new FragmentExec(subplan);
+                    }
+                    newSubPlans.add(plan);
                 }
-                if (right instanceof FragmentExec f) {
-                    LogicalPlan subplan = f.fragment();
-                    subplan.setAnalyzed();
-                    subplan = optimizedPlan(subplan);
-                    PhysicalPlan subqueryPlan = logicalPlanToPhysicalPlan(subplan, request);
-                    subplans.add(new PlanTuple(subqueryPlan, subplan));
-                    right = new FragmentExec(subplan);
-                }
-
-                return new LocalMultiSourceExec(m.source(), left, right, m.output());
+                return new LocalMultiSourceExec(m.source(), newSubPlans, m.output());
             }
 
             return p;
@@ -292,23 +284,35 @@ public class EsqlSession {
                         return f.withFragment(frag.transformUp(LogicalPlan.class, bp -> {
                             if (bp instanceof InlineJoin ij && ij.right() == tuple.logical) {
                                 return InlineJoin.inlineData(ij, resultWrapper);
-                            } else if (bp instanceof Merge mr && mr.right() == tuple.logical) {
-                                return Merge.subPlanData(mr, resultWrapper);
+                            } else if (bp instanceof Merge mr && mr.subPlans().stream().anyMatch(sp -> sp == tuple.logical)) {
+                                List<LogicalPlan> newSubPlans = new ArrayList<>(mr.subPlans());
+                                for (int i = 0; i < newSubPlans.size(); i++) {
+                                    if (newSubPlans.get(i) == tuple.logical) {
+                                        newSubPlans.set(i, resultWrapper);
+                                    }
+                                }
+                                return new Merge(mr.source(), newSubPlans);
                             }
                             return bp;
                         }));
                     }
                     if (p instanceof LocalMultiSourceExec m) {
-                        if (m.right() instanceof FragmentExec f && f.fragment() == tuple.logical) {
-                            var resultsExec = new LocalSourceExec(resultWrapper.source(), resultWrapper.output(), resultWrapper.supplier());
-                            return new LocalMultiSourceExec(m.source(), m.left(), resultsExec, m.output());
-                        }
-                        if (m.left() instanceof FragmentExec f && f.fragment() == tuple.logical) {
-                            var resultsExec = new LocalSourceExec(resultWrapper.source(), resultWrapper.output(), resultWrapper.supplier());
-                            return new LocalMultiSourceExec(m.source(), resultsExec, m.right(), m.output());
+                        boolean anyMatch = m.subPlans().stream()
+                            .filter(sp -> FragmentExec.class.isAssignableFrom(sp.getClass()))
+                            .map(FragmentExec.class::cast)
+                            .anyMatch(fragmentExec -> fragmentExec.fragment() == tuple.logical);
+                        if (anyMatch) {
+                            List<PhysicalPlan> newSubPlans = new ArrayList<>(m.subPlans());
+                            for (int i = 0; i < newSubPlans.size(); i++) {
+                                var subPlan = newSubPlans.get(i);
+                                if (subPlan instanceof FragmentExec fe && fe.fragment() == tuple.logical) {
+                                    var resultsExec = new LocalSourceExec(resultWrapper.source(), resultWrapper.output(), resultWrapper.supplier());
+                                    newSubPlans.set(i, resultsExec);
+                                }
+                            }
+                            return new LocalMultiSourceExec(m.source(), newSubPlans, m.output());
                         }
                     }
-
 
                     return p;
                 });

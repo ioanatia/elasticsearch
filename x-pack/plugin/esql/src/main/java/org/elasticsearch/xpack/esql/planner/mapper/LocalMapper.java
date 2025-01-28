@@ -37,6 +37,8 @@ import org.elasticsearch.xpack.esql.plan.physical.TopNExec;
 
 import java.util.List;
 
+import static java.util.stream.Collectors.toList;
+
 /**
  * <p>Maps a (local) logical plan into a (local) physical plan. This class is the equivalent of {@link Mapper} but for data nodes.
  *
@@ -66,14 +68,14 @@ public class LocalMapper {
         }
 
         if (leaf instanceof Merge p) {
-            PhysicalPlan left = map(p.left());
-            PhysicalPlan right = map(p.right());
+            List<PhysicalPlan> physPlans = p.subPlans().stream().map(this::map).collect(toList());
 
             // align the input and the output for the LocalMultiSourceOperator
             // we add a ProjectExec on the main branch to reoder the output
-            PhysicalPlan project = new ProjectExec(p.source(), left, p.output());
+            PhysicalPlan project = new ProjectExec(p.source(), physPlans.getFirst(), p.output());
+            physPlans.set(0, project);
 
-            return new LocalMultiSourceExec(p.source(), project, right, p.output());
+            return new LocalMultiSourceExec(p.source(), physPlans, p.output());
         }
 
         return MapperUtils.mapLeaf(leaf);

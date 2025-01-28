@@ -75,7 +75,8 @@ public class Mapper {
         }
 
         if (leaf instanceof Merge m) {
-            return new LocalMultiSourceExec(m.source(), new FragmentExec(m.left()), new FragmentExec(m.right()), m.output());
+            List<? extends PhysicalPlan> subPlans = m.subPlans().stream().map(FragmentExec::new).toList();
+            return new LocalMultiSourceExec(m.source(), subPlans, m.output());
         }
 
         return MapperUtils.mapLeaf(leaf);

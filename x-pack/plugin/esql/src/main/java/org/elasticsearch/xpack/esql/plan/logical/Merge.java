@@ -24,28 +24,24 @@ import java.util.Objects;
 
 public class Merge extends LeafPlan {
     public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(LogicalPlan.class, "Merge", Merge::new);
-    private final LogicalPlan left;
-    private final LogicalPlan right;
+    private final List<LogicalPlan> subPlans;
 
-    public Merge(Source source, LogicalPlan left, LogicalPlan right) {
+    public Merge(Source source, List<LogicalPlan> subPlans) {
         super(source);
-        this.left = left;
-        this.right = right;
+        this.subPlans = subPlans;
     }
 
     public Merge(StreamInput in) throws IOException {
         this(
             Source.readFrom((PlanStreamInput) in),
-            in.readNamedWriteable(LogicalPlan.class),
-            in.readNamedWriteable(LogicalPlan.class)
+            null //in.readCollectionAsList(LogicalPlan::new)
         );
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         Source.EMPTY.writeTo(out);
-        out.writeNamedWriteable(left);
-        out.writeNamedWriteable(right);
+        out.writeCollection(subPlans);
     }
 
     @Override
@@ -60,12 +56,12 @@ public class Merge extends LeafPlan {
 
     @Override
     public boolean expressionsResolved() {
-        return left.expressionsResolved() && right.expressionsResolved();
+        return subPlans.stream().allMatch(LogicalPlan::expressionsResolved);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(source().hashCode(), left, right);
+        return Objects.hash(source().hashCode(), subPlans);
     }
 
     @Override
@@ -79,24 +75,25 @@ public class Merge extends LeafPlan {
         Merge other = (Merge) o;
 
         return Objects.equals(source(), other.source())
-            && Objects.equals(left, other.left)
-            && Objects.equals(right, other.right);
+            && Objects.equals(subPlans, other.subPlans);
     }
 
     @Override
     protected NodeInfo<? extends LogicalPlan> info() {
-        return NodeInfo.create(this, Merge::new, left, right);
+        return NodeInfo.create(this, Merge::new, subPlans);
     }
 
-    public static LogicalPlan subPlanData(Merge target, LocalRelation data) {
-        return new Merge(target.source(), target.left(), data);
-    }
+//    public static LogicalPlan subPlanData(Merge target, LocalRelation data) {
+//        return new Merge(target.source(), target.left(), data);
+//    }
 
     @Override
     public List<Attribute> output() {
-        return left.output();
+        return subPlans.getFirst().output();
     }
 
-    public LogicalPlan left() { return left; }
-    public LogicalPlan right() { return right; }
+    public List<LogicalPlan> subPlans() { return subPlans; }
+
+    //public LogicalPlan left() { return left; }
+    //public LogicalPlan right() { return right; }
  }

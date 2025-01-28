@@ -257,7 +257,6 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
         }
     }
 
-    // TODO: this just verifies that the grammar accepts 3 subqueries
     public void testThreeSubQueries() {
         var query = """
             FROM test
@@ -266,13 +265,45 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
                [WHERE content:"fox" ]
                [WHERE content:"dog" ]
                [WHERE content:"cat" ]
-            | KEEP id, _fork, content
-            | SORT id, _fork
+            | KEEP _fork, id, content
+            | SORT _fork, id
             """;
         try (var resp = run(query)) {
-            assertColumnNames(resp.columns(), List.of("id", "_fork", "content"));
-            assertColumnTypes(resp.columns(), List.of("integer", "keyword", "text"));
-            // TODO ...
+            assertColumnNames(resp.columns(), List.of("_fork", "id", "content"));
+            assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of("fork0", 6, "The quick brown fox jumps over the lazy dog"),
+                List.of("fork1", 3, "This dog is really brown"),
+                List.of("fork1", 4, "The dog is brown but this document is very very long"),
+                List.of("fork1", 6, "The quick brown fox jumps over the lazy dog"),
+                List.of("fork2", 5, "There is also a white cat")
+            );
+            assertValues(resp.values(), expectedValues);        }
+    }
+
+    public void testFiveSubQueries() {
+        var query = """
+            FROM test
+            | FORK
+               [ WHERE id == 6 ]
+               [ WHERE id == 2 ]
+               [ WHERE id == 5 ]
+               [ WHERE id == 1 ]
+               [ WHERE id == 3 ]
+            | SORT _fork, id
+            | KEEP _fork, id, content
+            """;
+        try (var resp = run(query)) {
+            assertColumnNames(resp.columns(), List.of("_fork", "id", "content"));
+            assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of("fork0", 6, "The quick brown fox jumps over the lazy dog"),
+                List.of("fork1", 2, "This is a brown dog"),
+                List.of("fork2", 5, "There is also a white cat"),
+                List.of("fork3", 1, "This is a brown fox"),
+                List.of("fork4", 3, "This dog is really brown")
+            );
+            assertValues(resp.values(), expectedValues);
         }
     }
 

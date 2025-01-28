@@ -20,17 +20,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-// HEGO: remove based on Lookup
 public class Fork extends UnaryPlan {
     public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(LogicalPlan.class, "Fork", Fork::new);
-    private final LogicalPlan first;
-    private final LogicalPlan second;
+    private final List<LogicalPlan> subPlans;
     private List<Attribute> lazyOutput;
 
-    public Fork(Source source, LogicalPlan child, LogicalPlan first, LogicalPlan second) {
+    public Fork(Source source, LogicalPlan child, List<LogicalPlan> subPlans) {
         super(source, child);
-        this.first = first;
-        this.second = second;
+        this.subPlans = subPlans;
         // this.tableName = tableName;
         // this.matchFields = matchFields;
         // this.localRelation = localRelation;
@@ -38,8 +35,7 @@ public class Fork extends UnaryPlan {
 
     public Fork(StreamInput in) throws IOException {
         super(Source.readFrom((PlanStreamInput) in), in.readNamedWriteable(LogicalPlan.class));
-        this.first = null;
-        this.second = null;
+        this.subPlans = null;
         // this.tableName = in.readNamedWriteable(Expression.class);
         // this.matchFields = in.readNamedWriteableCollectionAsList(Attribute.class);
         // this.localRelation = in.readBoolean() ? new LocalRelation(in) : null;
@@ -64,17 +60,13 @@ public class Fork extends UnaryPlan {
         return ENTRY.name;
     }
 
-    public LogicalPlan first() {
-        return first;
-    }
-
-    public LogicalPlan second() {
-        return second;
+    public List<LogicalPlan> subPlans() {
+        return subPlans;
     }
 
     @Override
     public UnaryPlan replaceChild(LogicalPlan newChild) {
-        return new Fork(source(), newChild, newChild, second);
+        return new Fork(source(), newChild, subPlans);
     }
 
     @Override
@@ -84,18 +76,18 @@ public class Fork extends UnaryPlan {
 
     @Override
     public boolean expressionsResolved() {
-        return first.expressionsResolved() && second.expressionsResolved();
+        return subPlans.stream().allMatch(LogicalPlan::expressionsResolved);
     }
 
     @Override
     protected NodeInfo<? extends LogicalPlan> info() {
-        return NodeInfo.create(this, Fork::new, child(), first, second);
+        return NodeInfo.create(this, Fork::new, child(), subPlans);
     }
 
     @Override
     public List<Attribute> output() {
         if (lazyOutput == null) {
-            lazyOutput = new ArrayList<>(first.output()); // assumes first and second are identical
+            lazyOutput = new ArrayList<>(subPlans.get(0).output()); // assumes all plans are identical
         }
         return lazyOutput;
     }
@@ -112,12 +104,11 @@ public class Fork extends UnaryPlan {
             return false;
         }
         Fork other = (Fork) o;
-        return Objects.equals(first, other.first)
-            && Objects.equals(second, other.second);
+        return Objects.equals(subPlans, other.subPlans);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), first, second);
+        return Objects.hash(super.hashCode(), subPlans);
     }
 }
