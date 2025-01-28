@@ -308,6 +308,36 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
         }
     }
 
+
+    // TODO: order of id in subqueries SORT ASC is not preserved. It should be, right?
+    public void testFourSubQueriesWithSortAndLimit() {
+        var query = """
+            FROM test
+            | FORK
+               [ WHERE id > 0 | SORT id DESC | LIMIT 2]
+               [ WHERE id > 1 | SORT id ASC  | LIMIT 3]
+               [ WHERE id < 2 | SORT id DESC | LIMIT 2]
+               [ WHERE id > 3 | SORT id ASC  | LIMIT 2]
+            | SORT _fork
+            | KEEP _fork, id, content
+            """;
+        try (var resp = run(query)) {
+            assertColumnNames(resp.columns(), List.of("_fork", "id", "content"));
+            assertColumnTypes(resp.columns(), List.of("keyword", "integer", "text"));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of("fork0", 6, "The quick brown fox jumps over the lazy dog"),
+                List.of("fork0", 5, "There is also a white cat"),
+                List.of("fork1", 2, "This is a brown dog"),
+                List.of("fork1", 3, "This dog is really brown"),
+                List.of("fork1", 4, "The dog is brown but this document is very very long"),
+                List.of("fork2", 1, "This is a brown fox"),
+                List.of("fork3", 4, "The dog is brown but this document is very very long"),
+                List.of("fork3", 5, "There is also a white cat")
+            );
+            assertValues(resp.values(), expectedValues);
+        }
+    }
+
     public void testOneSubQuery() {
         var query = """
             FROM test
