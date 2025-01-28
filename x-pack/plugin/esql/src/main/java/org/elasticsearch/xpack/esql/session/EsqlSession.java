@@ -58,7 +58,6 @@ import org.elasticsearch.xpack.esql.parser.EsqlParser;
 import org.elasticsearch.xpack.esql.parser.QueryParams;
 import org.elasticsearch.xpack.esql.plan.TableIdentifier;
 import org.elasticsearch.xpack.esql.plan.logical.Aggregate;
-import org.elasticsearch.xpack.esql.plan.logical.BinaryPlan;
 import org.elasticsearch.xpack.esql.plan.logical.Enrich;
 import org.elasticsearch.xpack.esql.plan.logical.Keep;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
@@ -220,7 +219,7 @@ public class EsqlSession {
                         // extract the right side of the plan and replace its source
                         subplan = InlineJoin.replaceStub(ij.left(), ij.right());
                     } else if (bp instanceof Merge mr) {
-                        // subplan = mr.right();  TODO
+                        // subplan = mr.right(); TODO
                     }
                     if (subplan != null) {
                         // mark the new root node as optimized
@@ -297,7 +296,8 @@ public class EsqlSession {
                         }));
                     }
                     if (p instanceof LocalMultiSourceExec m) {
-                        boolean anyMatch = m.subPlans().stream()
+                        boolean anyMatch = m.subPlans()
+                            .stream()
                             .filter(sp -> FragmentExec.class.isAssignableFrom(sp.getClass()))
                             .map(FragmentExec.class::cast)
                             .anyMatch(fragmentExec -> fragmentExec.fragment() == tuple.logical);
@@ -306,7 +306,11 @@ public class EsqlSession {
                             for (int i = 0; i < newSubPlans.size(); i++) {
                                 var subPlan = newSubPlans.get(i);
                                 if (subPlan instanceof FragmentExec fe && fe.fragment() == tuple.logical) {
-                                    var resultsExec = new LocalSourceExec(resultWrapper.source(), resultWrapper.output(), resultWrapper.supplier());
+                                    var resultsExec = new LocalSourceExec(
+                                        resultWrapper.source(),
+                                        resultWrapper.output(),
+                                        resultWrapper.supplier()
+                                    );
                                     newSubPlans.set(i, resultsExec);
                                 }
                             }

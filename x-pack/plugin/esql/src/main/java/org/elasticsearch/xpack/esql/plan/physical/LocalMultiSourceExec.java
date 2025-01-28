@@ -41,8 +41,8 @@ public class LocalMultiSourceExec extends LeafExec {
 
     public LocalMultiSourceExec(StreamInput in) throws IOException {
         super(Source.readFrom((PlanStreamInput) in));
-        this.physSubPlans = null; //in.readCollectionAsList(PhysicalPlan::new);
-        //this.right = in.readNamedWriteable(PhysicalPlan.class);
+        this.physSubPlans = null; // in.readCollectionAsList(PhysicalPlan::new);
+        // this.right = in.readNamedWriteable(PhysicalPlan.class);
         this.output = in.readNamedWriteableCollectionAsList(Attribute.class);
     }
 
@@ -97,7 +97,6 @@ public class LocalMultiSourceExec extends LeafExec {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         LocalMultiSourceExec other = (LocalMultiSourceExec) o;
-        return Objects.equals(this.source(), other.source())
-            && Objects.equals(this.physSubPlans, other.physSubPlans);
+        return Objects.equals(this.source(), other.source()) && Objects.equals(this.physSubPlans, other.physSubPlans);
     }
 }

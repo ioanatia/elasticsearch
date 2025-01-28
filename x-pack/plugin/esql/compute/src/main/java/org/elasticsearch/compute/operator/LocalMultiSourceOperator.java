@@ -7,17 +7,13 @@
 
 package org.elasticsearch.compute.operator;
 
-import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.compute.data.Block;
 import org.elasticsearch.compute.data.BlockFactory;
-import org.elasticsearch.compute.data.DocBlock;
 import org.elasticsearch.compute.data.Page;
-import org.elasticsearch.core.Releasables;
 
 import java.util.List;
 import java.util.ListIterator;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 public class LocalMultiSourceOperator extends SourceOperator {
 
@@ -49,7 +45,6 @@ public class LocalMultiSourceOperator extends SourceOperator {
 
     public interface BlockSuppliers extends Supplier<List<Block[]>> {};
 
-
     @Override
     public void finish() {
         finished = true;
@@ -75,21 +70,20 @@ public class LocalMultiSourceOperator extends SourceOperator {
             finished = true;
         }
 
-
         return page;
     }
 
     @Override
     public void close() {
-//        if (prev != null) {
-//            prev.releaseBlocks();
-//        }
+        // if (prev != null) {
+        // prev.releaseBlocks();
+        // }
         // The blocks are closable by the other exchange? so we have to copy them
-//        if (subPlanBlocks != null) {
-//            while (subPlanBlocks.hasNext()) {
-//                Releasables.close(subPlanBlocks.next());
-//            }
-//        }
+        // if (subPlanBlocks != null) {
+        // while (subPlanBlocks.hasNext()) {
+        // Releasables.close(subPlanBlocks.next());
+        // }
+        // }
     }
 
     @Override

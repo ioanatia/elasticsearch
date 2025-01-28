@@ -107,9 +107,8 @@ public class QueryBuilderResolver {
         plan.forEachDown(EsRelation.class, esRelation -> { indexNames.set(esRelation.index().concreteIndices()); });
 
         plan.forEachDown(Merge.class, merge -> {
-            merge.subPlans().forEach(p -> p.forEachDown(EsRelation.class,
-                esRelation -> { indexNames.set(esRelation.index().concreteIndices()); }
-            ));
+            merge.subPlans()
+                .forEach(p -> p.forEachDown(EsRelation.class, esRelation -> { indexNames.set(esRelation.index().concreteIndices()); }));
         });
 
         return indexNames.get();

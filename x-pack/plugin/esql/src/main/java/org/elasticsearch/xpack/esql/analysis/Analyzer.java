@@ -190,8 +190,10 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
 
             int count = 0;
             for (var subPlan : fr.subPlans()) {
-                LogicalPlan subPlanCopy = subPlan
-                    .transformUp(LogicalPlan.class, p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children()));
+                LogicalPlan subPlanCopy = subPlan.transformUp(
+                    LogicalPlan.class,
+                    p -> p instanceof LeafPlan ? p : p.replaceChildren(p.children())
+                );
 
                 String forkValue = "fork" + count++;
                 subPlanCopy = new Eval(
@@ -204,13 +206,13 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
                 analyzedPlans.add(analyzedCopy);
             }
 
-//            List<Attribute> output = new ArrayList<>();
-//            for(Attribute at : analyzedPlans.getFirst().output()) {
-//                output.add(new UnresolvedAttribute(fr.source(), at.name()));
-//            }
-//
-//            copyFirst = new Keep(fr.source(), copyFirst, output);
-//            LogicalPlan analyzedFirst = execute(copyFirst);
+            // List<Attribute> output = new ArrayList<>();
+            // for(Attribute at : analyzedPlans.getFirst().output()) {
+            // output.add(new UnresolvedAttribute(fr.source(), at.name()));
+            // }
+            //
+            // copyFirst = new Keep(fr.source(), copyFirst, output);
+            // LogicalPlan analyzedFirst = execute(copyFirst);
 
             return new Merge(fr.source(), analyzedPlans);
         });
@@ -735,6 +737,7 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
             }
             return resolved;
         }
+
         private Attribute maybeResolveAttribute(UnresolvedAttribute ua, List<Attribute> childrenOutput) {
             return maybeResolveAttribute(ua, childrenOutput, log);
         }

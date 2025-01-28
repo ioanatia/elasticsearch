@@ -278,7 +278,8 @@ public class ForkIT extends AbstractEsqlIntegTestCase {
                 List.of("fork1", 6, "The quick brown fox jumps over the lazy dog"),
                 List.of("fork2", 5, "There is also a white cat")
             );
-            assertValues(resp.values(), expectedValues);        }
+            assertValues(resp.values(), expectedValues);
+        }
     }
 
     public void testFiveSubQueries() {

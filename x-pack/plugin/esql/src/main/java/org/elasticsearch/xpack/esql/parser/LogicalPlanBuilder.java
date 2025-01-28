@@ -570,7 +570,8 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
         };
     }
 
-    @Override public List<PlanFactory> visitForkSubQueries(EsqlBaseParser.ForkSubQueriesContext ctx) {
+    @Override
+    public List<PlanFactory> visitForkSubQueries(EsqlBaseParser.ForkSubQueriesContext ctx) {
         var subQueriesCtx = ctx.forkSubQuery();
         ArrayList<PlanFactory> list = new ArrayList<>();
         for (var subQueryCtx : subQueriesCtx) {

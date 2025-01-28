@@ -11,14 +11,11 @@ import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xpack.esql.core.expression.Attribute;
-import org.elasticsearch.xpack.esql.core.expression.AttributeSet;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
 import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.io.stream.PlanStreamInput;
-import org.elasticsearch.xpack.esql.plan.logical.local.LocalRelation;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -34,7 +31,7 @@ public class Merge extends LeafPlan {
     public Merge(StreamInput in) throws IOException {
         this(
             Source.readFrom((PlanStreamInput) in),
-            null //in.readCollectionAsList(LogicalPlan::new)
+            null // in.readCollectionAsList(LogicalPlan::new)
         );
     }
 
@@ -74,8 +71,7 @@ public class Merge extends LeafPlan {
         }
         Merge other = (Merge) o;
 
-        return Objects.equals(source(), other.source())
-            && Objects.equals(subPlans, other.subPlans);
+        return Objects.equals(source(), other.source()) && Objects.equals(subPlans, other.subPlans);
     }
 
     @Override
@@ -83,17 +79,19 @@ public class Merge extends LeafPlan {
         return NodeInfo.create(this, Merge::new, subPlans);
     }
 
-//    public static LogicalPlan subPlanData(Merge target, LocalRelation data) {
-//        return new Merge(target.source(), target.left(), data);
-//    }
+    // public static LogicalPlan subPlanData(Merge target, LocalRelation data) {
+    // return new Merge(target.source(), target.left(), data);
+    // }
 
     @Override
     public List<Attribute> output() {
         return subPlans.getFirst().output();
     }
 
-    public List<LogicalPlan> subPlans() { return subPlans; }
+    public List<LogicalPlan> subPlans() {
+        return subPlans;
+    }
 
-    //public LogicalPlan left() { return left; }
-    //public LogicalPlan right() { return right; }
- }
+    // public LogicalPlan left() { return left; }
+    // public LogicalPlan right() { return right; }
+}
