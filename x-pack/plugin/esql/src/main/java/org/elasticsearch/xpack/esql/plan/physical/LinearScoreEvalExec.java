@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.esql.plan.physical;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xpack.esql.core.expression.Attribute;
-import org.elasticsearch.xpack.esql.core.expression.AttributeSet;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.expression.FoldContext;
 import org.elasticsearch.xpack.esql.core.expression.MapExpression;
@@ -20,16 +20,26 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RrfScoreEvalExec extends UnaryExec {
-    private final Attribute scoreAttr;
-    private final Attribute forkAttr;
+public class LinearScoreEvalExec extends UnaryExec {
+    private final Attribute score;
+    private final Attribute discriminator;
     private final MapExpression options;
 
-    public RrfScoreEvalExec(Source source, PhysicalPlan child, Attribute scoreAttr, Attribute forkAttr, MapExpression options) {
+    public LinearScoreEvalExec(Source source, PhysicalPlan child, Attribute score, Attribute discriminator, MapExpression options) {
         super(source, child);
-        this.scoreAttr = scoreAttr;
-        this.forkAttr = forkAttr;
+        this.score = score;
+        this.discriminator = discriminator;
         this.options = options;
+    }
+
+    @Override
+    public UnaryExec replaceChild(PhysicalPlan newChild) {
+        return new LinearScoreEvalExec(source(), newChild, score, discriminator, options);
+    }
+
+    @Override
+    protected NodeInfo<? extends PhysicalPlan> info() {
+        return NodeInfo.create(this, LinearScoreEvalExec::new, child(), score, discriminator, options);
     }
 
     @Override
@@ -42,35 +52,12 @@ public class RrfScoreEvalExec extends UnaryExec {
         throw new UnsupportedOperationException("not serialized");
     }
 
-    @Override
-    protected NodeInfo<? extends PhysicalPlan> info() {
-        return NodeInfo.create(this, RrfScoreEvalExec::new, child(), scoreAttr, forkAttr, options);
+    public Attribute score() {
+        return score;
     }
 
-    @Override
-    public UnaryExec replaceChild(PhysicalPlan newChild) {
-        return new RrfScoreEvalExec(source(), newChild, scoreAttr, forkAttr, options);
-    }
-
-    @Override
-    protected AttributeSet computeReferences() {
-        return AttributeSet.of(scoreAttr, forkAttr);
-    }
-
-    public Attribute discriminator() { return forkAttr; }
-
-    public Attribute score() { return scoreAttr; }
-
-    public double rankConstant() {
-        if (options == null) {
-            return 60;
-        }
-
-        Expression rankConstant = options.get("rank_constant");
-        if (rankConstant == null) {
-            return 60;
-        }
-        return (Integer) rankConstant.fold(FoldContext.small());
+    public Attribute discriminator() {
+        return discriminator;
     }
 
     public Map<String, Double> weights() {
@@ -86,5 +73,19 @@ public class RrfScoreEvalExec extends UnaryExec {
 
         weights.keyFoldedMap().forEach((k, v) -> { result.put(k, (double) v.fold(FoldContext.small())); });
         return result;
+    }
+
+    public String normalizer() {
+        if (options == null) {
+            return "none";
+        }
+
+        Expression normalizer = options.get("normalizer");
+        if (normalizer == null) {
+            return "none";
+        }
+        BytesRef normalizerBytes = (BytesRef) normalizer.fold(FoldContext.small());
+
+        return normalizerBytes.utf8ToString();
     }
 }

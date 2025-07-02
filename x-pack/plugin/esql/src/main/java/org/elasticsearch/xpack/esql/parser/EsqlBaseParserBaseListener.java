@@ -781,18 +781,6 @@ public class EsqlBaseParserBaseListener implements EsqlBaseParserListener {
    *
    * <p>The default implementation does nothing.</p>
    */
-  @Override public void enterRrfCommand(EsqlBaseParser.RrfCommandContext ctx) { }
-  /**
-   * {@inheritDoc}
-   *
-   * <p>The default implementation does nothing.</p>
-   */
-  @Override public void exitRrfCommand(EsqlBaseParser.RrfCommandContext ctx) { }
-  /**
-   * {@inheritDoc}
-   *
-   * <p>The default implementation does nothing.</p>
-   */
   @Override public void enterFuseCommand(EsqlBaseParser.FuseCommandContext ctx) { }
   /**
    * {@inheritDoc}
@@ -1160,6 +1148,18 @@ public class EsqlBaseParserBaseListener implements EsqlBaseParserListener {
    * <p>The default implementation does nothing.</p>
    */
   @Override public void exitEntryExpression(EsqlBaseParser.EntryExpressionContext ctx) { }
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation does nothing.</p>
+   */
+  @Override public void enterMapValue(EsqlBaseParser.MapValueContext ctx) { }
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The default implementation does nothing.</p>
+   */
+  @Override public void exitMapValue(EsqlBaseParser.MapValueContext ctx) { }
   /**
    * {@inheritDoc}
    *

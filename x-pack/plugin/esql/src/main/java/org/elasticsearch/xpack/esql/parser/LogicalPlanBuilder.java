@@ -32,6 +32,7 @@ import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.expression.Expressions;
 import org.elasticsearch.xpack.esql.core.expression.FoldContext;
 import org.elasticsearch.xpack.esql.core.expression.Literal;
+import org.elasticsearch.xpack.esql.core.expression.MapExpression;
 import org.elasticsearch.xpack.esql.core.expression.MetadataAttribute;
 import org.elasticsearch.xpack.esql.core.expression.NameId;
 import org.elasticsearch.xpack.esql.core.expression.NamedExpression;
@@ -44,11 +45,9 @@ import org.elasticsearch.xpack.esql.core.util.Holder;
 import org.elasticsearch.xpack.esql.expression.Order;
 import org.elasticsearch.xpack.esql.expression.UnresolvedNamePattern;
 import org.elasticsearch.xpack.esql.expression.function.UnresolvedFunction;
-import org.elasticsearch.xpack.esql.expression.function.aggregate.Sum;
 import org.elasticsearch.xpack.esql.plan.IndexPattern;
 import org.elasticsearch.xpack.esql.plan.logical.Aggregate;
 import org.elasticsearch.xpack.esql.plan.logical.ChangePoint;
-import org.elasticsearch.xpack.esql.plan.logical.Dedup;
 import org.elasticsearch.xpack.esql.plan.logical.Dissect;
 import org.elasticsearch.xpack.esql.plan.logical.Drop;
 import org.elasticsearch.xpack.esql.plan.logical.Enrich;
@@ -56,6 +55,7 @@ import org.elasticsearch.xpack.esql.plan.logical.Eval;
 import org.elasticsearch.xpack.esql.plan.logical.Explain;
 import org.elasticsearch.xpack.esql.plan.logical.Filter;
 import org.elasticsearch.xpack.esql.plan.logical.Fork;
+import org.elasticsearch.xpack.esql.plan.logical.Fuse;
 import org.elasticsearch.xpack.esql.plan.logical.Grok;
 import org.elasticsearch.xpack.esql.plan.logical.InlineStats;
 import org.elasticsearch.xpack.esql.plan.logical.Insist;
@@ -67,7 +67,6 @@ import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
 import org.elasticsearch.xpack.esql.plan.logical.OrderBy;
 import org.elasticsearch.xpack.esql.plan.logical.Rename;
 import org.elasticsearch.xpack.esql.plan.logical.Row;
-import org.elasticsearch.xpack.esql.plan.logical.RrfScoreEval;
 import org.elasticsearch.xpack.esql.plan.logical.Sample;
 import org.elasticsearch.xpack.esql.plan.logical.TimeSeriesAggregate;
 import org.elasticsearch.xpack.esql.plan.logical.UnresolvedRelation;
@@ -90,7 +89,6 @@ import java.util.Set;
 import java.util.function.Function;
 
 import static java.util.Collections.emptyList;
-import static org.elasticsearch.xpack.esql.common.Failure.fail;
 import static org.elasticsearch.xpack.esql.core.type.DataType.KEYWORD;
 import static org.elasticsearch.xpack.esql.core.util.StringUtils.WILDCARD;
 import static org.elasticsearch.xpack.esql.expression.NamedExpressions.mergeOutputExpressions;
@@ -718,39 +716,40 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
     }
 
     @Override
-    public PlanFactory visitRrfCommand(EsqlBaseParser.RrfCommandContext ctx) {
-        return fusePlanFactory(source(ctx), true);
-    }
-
-    @Override
     public PlanFactory visitFuseCommand(EsqlBaseParser.FuseCommandContext ctx) {
-        return fusePlanFactory(source(ctx), false);
-    }
-
-    private PlanFactory fusePlanFactory(Source source, boolean sorted) {
+        Source source = source(ctx);
         return input -> {
-            Attribute scoreAttr = new UnresolvedAttribute(source, MetadataAttribute.SCORE);
-            Attribute forkAttr = new UnresolvedAttribute(source, Fork.FORK_FIELD);
+            Attribute scoreAttr = ctx.score == null ? new UnresolvedAttribute(source, MetadataAttribute.SCORE) : visitQualifiedName(ctx.score);
+            Attribute discriminatorAttr = ctx.key == null ? new UnresolvedAttribute(source, Fork.FORK_FIELD) : visitQualifiedName(ctx.key);
             Attribute idAttr = new UnresolvedAttribute(source, IdFieldMapper.NAME);
             Attribute indexAttr = new UnresolvedAttribute(source, MetadataAttribute.INDEX);
-            List<NamedExpression> aggregates = List.of(
-                new Alias(source, MetadataAttribute.SCORE, new Sum(source, scoreAttr, new Literal(source, true, DataType.BOOLEAN)))
-            );
-            List<Attribute> groupings = List.of(idAttr, indexAttr);
+            List<NamedExpression> groupings = ctx.group == null ? List.of(idAttr, indexAttr) : visitGrouping(ctx.group);
+            Fuse.FuseType fuseType = Fuse.FuseType.RRF;
+            MapExpression options = null;
 
-            LogicalPlan dedup = new Dedup(source, new RrfScoreEval(source, input, scoreAttr, forkAttr), aggregates, groupings);
+            if (ctx.functionExpression() != null) {
+                UnresolvedFunction fuseFunction = (UnresolvedFunction) visitFunctionExpression(ctx.functionExpression());
 
-            if (sorted == false) {
-                return dedup;
+                if (fuseFunction.arguments().size() > 1) {
+                    throw new ParsingException(source(ctx), "Fuse function expects at most one argument");
+                }
+
+                if (fuseFunction.arguments().size() == 1 && fuseFunction.arguments().get(0) instanceof MapExpression == false) {
+                    throw new ParsingException(source(ctx), "Fuse function expects a map expression");
+                }
+
+                if (fuseFunction.arguments().size() == 1) {
+                    options = (MapExpression) fuseFunction.arguments().getFirst();
+                }
+
+                if (fuseFunction.name().equals("rrf") == false && fuseFunction.name().equals("linear") == false) {
+                    throw new ParsingException(source(ctx), "Fuse function expects either 'rrf' or 'linear'");
+                }
+
+                fuseType = Fuse.fuseType(fuseFunction.name());
             }
 
-            List<Order> order = List.of(
-                new Order(source, scoreAttr, Order.OrderDirection.DESC, Order.NullsPosition.LAST),
-                new Order(source, idAttr, Order.OrderDirection.ASC, Order.NullsPosition.LAST),
-                new Order(source, indexAttr, Order.OrderDirection.ASC, Order.NullsPosition.LAST)
-            );
-
-            return new OrderBy(source, dedup, order);
+            return new Fuse(source, input, scoreAttr, discriminatorAttr, groupings, fuseType, options);
         };
     }
 

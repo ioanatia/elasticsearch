@@ -20,7 +20,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcke
 import static org.elasticsearch.xpack.esql.EsqlTestUtils.getValuesList;
 import static org.hamcrest.Matchers.equalTo;
 
-public class RrfIT extends AbstractEsqlIntegTestCase {
+public class FuseIT extends AbstractEsqlIntegTestCase {
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return List.of(EsqlPluginWithEnterpriseOrTrialLicense.class);
@@ -28,18 +28,19 @@ public class RrfIT extends AbstractEsqlIntegTestCase {
 
     @Before
     public void setupIndex() {
-        assumeTrue("requires RRF capability", EsqlCapabilities.Cap.RRF.isEnabled());
+        assumeTrue("requires FUSE capability", EsqlCapabilities.Cap.FUSE.isEnabled());
         createAndPopulateIndex();
     }
 
-    public void testRrf() {
+    public void testSimpleFuse() {
         var query = """
             FROM test METADATA _score, _id, _index
             | WHERE id > 2
             | FORK
                ( WHERE content:"fox" | SORT _score, _id DESC )
                ( WHERE content:"dog" | SORT _score, _id DESC )
-            | RRF
+            | FUSE rrf({"weights": { "fork1": 0.4, "fork2": 0.6}})
+            | SORT _score DESC
             | EVAL _fork = mv_sort(_fork)
             | EVAL _score = round(_score, 4)
             | KEEP id, content, _score, _fork
@@ -49,9 +50,35 @@ public class RrfIT extends AbstractEsqlIntegTestCase {
             assertColumnTypes(resp.columns(), List.of("integer", "keyword", "double", "keyword"));
             assertThat(getValuesList(resp.values()).size(), equalTo(3));
             Iterable<Iterable<Object>> expectedValues = List.of(
-                List.of(6, "The quick brown fox jumps over the lazy dog", 0.0325, List.of("fork1", "fork2")),
-                List.of(4, "The dog is brown but this document is very very long", 0.0164, "fork2"),
-                List.of(3, "This dog is really brown", 0.0159, "fork2")
+                List.of(6, "The quick brown fox jumps over the lazy dog", 0.0162, List.of("fork1", "fork2")),
+                List.of(4, "The dog is brown but this document is very very long", 0.0098, "fork2"),
+                List.of(3, "This dog is really brown", 0.0095, "fork2")
+            );
+            assertValues(resp.values(), expectedValues);
+        }
+    }
+
+    public void testFuseLinear() {
+        var query = """
+            FROM test METADATA _score, _id, _index
+            | WHERE id > 2
+            | FORK
+               ( WHERE content:"fox" | SORT _score, _id DESC )
+               ( WHERE content:"dog" | SORT _score, _id DESC )
+            | FUSE linear({"weights": { "fork1": 0.4, "fork2": 0.6}, "normalizer": "l2_norm"})
+            | SORT _score DESC
+            | EVAL _fork = mv_sort(_fork)
+            | EVAL _score = round(_score, 4)
+            | KEEP id, content, _score, _fork
+            """;
+        try (var resp = run(query)) {
+            assertColumnNames(resp.columns(), List.of("id", "content", "_score", "_fork"));
+            assertColumnTypes(resp.columns(), List.of("integer", "keyword", "double", "keyword"));
+            assertThat(getValuesList(resp.values()).size(), equalTo(3));
+            Iterable<Iterable<Object>> expectedValues = List.of(
+                List.of(6, "The quick brown fox jumps over the lazy dog", 0.7241, List.of("fork1", "fork2")),
+                List.of(3, "This dog is really brown", 0.4112, "fork2"),
+                List.of(4, "The dog is brown but this document is very very long", 0.293, "fork2")
             );
             assertValues(resp.values(), expectedValues);
         }

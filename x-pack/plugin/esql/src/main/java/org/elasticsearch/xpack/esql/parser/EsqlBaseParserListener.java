@@ -666,16 +666,6 @@ public interface EsqlBaseParserListener extends ParseTreeListener {
    */
   void exitForkSubQueryProcessingCommand(EsqlBaseParser.ForkSubQueryProcessingCommandContext ctx);
   /**
-   * Enter a parse tree produced by {@link EsqlBaseParser#rrfCommand}.
-   * @param ctx the parse tree
-   */
-  void enterRrfCommand(EsqlBaseParser.RrfCommandContext ctx);
-  /**
-   * Exit a parse tree produced by {@link EsqlBaseParser#rrfCommand}.
-   * @param ctx the parse tree
-   */
-  void exitRrfCommand(EsqlBaseParser.RrfCommandContext ctx);
-  /**
    * Enter a parse tree produced by {@link EsqlBaseParser#fuseCommand}.
    * @param ctx the parse tree
    */
@@ -1025,6 +1015,16 @@ public interface EsqlBaseParserListener extends ParseTreeListener {
    * @param ctx the parse tree
    */
   void exitEntryExpression(EsqlBaseParser.EntryExpressionContext ctx);
+  /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#mapValue}.
+   * @param ctx the parse tree
+   */
+  void enterMapValue(EsqlBaseParser.MapValueContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#mapValue}.
+   * @param ctx the parse tree
+   */
+  void exitMapValue(EsqlBaseParser.MapValueContext ctx);
   /**
    * Enter a parse tree produced by the {@code nullLiteral}
    * labeled alternative in {@link EsqlBaseParser#constant}.

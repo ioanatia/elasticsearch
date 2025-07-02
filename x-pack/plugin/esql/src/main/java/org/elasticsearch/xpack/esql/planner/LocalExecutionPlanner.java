@@ -30,6 +30,7 @@ import org.elasticsearch.compute.operator.EvalOperator;
 import org.elasticsearch.compute.operator.EvalOperator.EvalOperatorFactory;
 import org.elasticsearch.compute.operator.FilterOperator.FilterOperatorFactory;
 import org.elasticsearch.compute.operator.LimitOperator;
+import org.elasticsearch.compute.operator.LinearScoreEvalOperator;
 import org.elasticsearch.compute.operator.LocalSourceOperator;
 import org.elasticsearch.compute.operator.LocalSourceOperator.LocalSourceFactory;
 import org.elasticsearch.compute.operator.MvExpandOperator;
@@ -105,6 +106,7 @@ import org.elasticsearch.xpack.esql.plan.physical.FilterExec;
 import org.elasticsearch.xpack.esql.plan.physical.GrokExec;
 import org.elasticsearch.xpack.esql.plan.physical.HashJoinExec;
 import org.elasticsearch.xpack.esql.plan.physical.LimitExec;
+import org.elasticsearch.xpack.esql.plan.physical.LinearScoreEvalExec;
 import org.elasticsearch.xpack.esql.plan.physical.LocalSourceExec;
 import org.elasticsearch.xpack.esql.plan.physical.LookupJoinExec;
 import org.elasticsearch.xpack.esql.plan.physical.MvExpandExec;
@@ -301,6 +303,8 @@ public class LocalExecutionPlanner {
             return planExchangeSink(exchangeSink, context);
         } else if (node instanceof RrfScoreEvalExec rrf) {
             return planRrfScoreEvalExec(rrf, context);
+        } else if (node instanceof LinearScoreEvalExec linear) {
+            return planLinearScoreEvalExec(linear, context);
         }
 
         throw new EsqlIllegalArgumentException("unknown physical plan node [" + node.nodeName() + "]");
@@ -326,10 +330,10 @@ public class LocalExecutionPlanner {
         int forkPosition = -1;
         int pos = 0;
         for (Attribute attr : rrf.child().output()) {
-            if (attr.name().equals(Fork.FORK_FIELD)) {
+            if (attr.name().equals(rrf.discriminator().name())) {
                 forkPosition = pos;
             }
-            if (attr.name().equals(MetadataAttribute.SCORE)) {
+            if (attr.name().equals(rrf.score().name())) {
                 scorePosition = pos;
             }
 
@@ -343,7 +347,38 @@ public class LocalExecutionPlanner {
             throw new IllegalStateException("can'find _fork attribute position");
         }
 
-        return source.with(new RrfScoreEvalOperator.Factory(forkPosition, scorePosition), source.layout);
+        return source.with(new RrfScoreEvalOperator.Factory(forkPosition, scorePosition, rrf.rankConstant(), rrf.weights()), source.layout);
+    }
+
+    private PhysicalOperation planLinearScoreEvalExec(LinearScoreEvalExec linear, LocalExecutionPlannerContext context) {
+        PhysicalOperation source = plan(linear.child(), context);
+
+        int scorePosition = -1;
+        int discriminatorPosition = -1;
+        int pos = 0;
+
+        for (Attribute attr : linear.child().output()) {
+            if (attr.name().equals(linear.discriminator().name())) {
+                discriminatorPosition = pos;
+            }
+            if (attr.name().equals(linear.score().name())) {
+                scorePosition = pos;
+            }
+
+            pos += 1;
+        }
+
+        if (scorePosition == -1) {
+            throw new IllegalStateException("can't find score attribute position");
+        }
+        if (discriminatorPosition == -1) {
+            throw new IllegalStateException("can'find discriminator attribute position");
+        }
+
+        return source.with(
+            new LinearScoreEvalOperator.Factory(scorePosition, discriminatorPosition, linear.weights(), linear.normalizer()),
+            source.layout
+        );
     }
 
     private PhysicalOperation planAggregation(AggregateExec aggregate, LocalExecutionPlannerContext context) {

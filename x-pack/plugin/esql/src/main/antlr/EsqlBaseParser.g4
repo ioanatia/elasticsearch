@@ -64,7 +64,6 @@ processingCommand
     | {this.isDevVersion()}? lookupCommand
     | {this.isDevVersion()}? insistCommand
     | {this.isDevVersion()}? rerankCommand
-    | {this.isDevVersion()}? rrfCommand
     | {this.isDevVersion()}? fuseCommand
     ;
 
@@ -303,12 +302,8 @@ forkSubQueryProcessingCommand
     : processingCommand
     ;
 
-rrfCommand
-   : DEV_RRF
-   ;
-
 fuseCommand
-    : DEV_FUSE
+    : DEV_FUSE (fuseType=functionExpression)? (BY key=qualifiedName)? (GROUP group=fields)? (SCORE score=qualifiedName)?
     ;
 
 inferenceCommandOptions

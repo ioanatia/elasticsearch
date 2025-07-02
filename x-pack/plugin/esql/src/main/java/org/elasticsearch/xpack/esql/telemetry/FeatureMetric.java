@@ -8,9 +8,9 @@
 package org.elasticsearch.xpack.esql.telemetry;
 
 import org.elasticsearch.xpack.esql.EsqlIllegalArgumentException;
+import org.elasticsearch.xpack.esql.plan.LinearScoreEval;
 import org.elasticsearch.xpack.esql.plan.logical.Aggregate;
 import org.elasticsearch.xpack.esql.plan.logical.ChangePoint;
-import org.elasticsearch.xpack.esql.plan.logical.Dedup;
 import org.elasticsearch.xpack.esql.plan.logical.Dissect;
 import org.elasticsearch.xpack.esql.plan.logical.Drop;
 import org.elasticsearch.xpack.esql.plan.logical.Enrich;
@@ -19,6 +19,7 @@ import org.elasticsearch.xpack.esql.plan.logical.Eval;
 import org.elasticsearch.xpack.esql.plan.logical.Explain;
 import org.elasticsearch.xpack.esql.plan.logical.Filter;
 import org.elasticsearch.xpack.esql.plan.logical.Fork;
+import org.elasticsearch.xpack.esql.plan.logical.Fuse;
 import org.elasticsearch.xpack.esql.plan.logical.Grok;
 import org.elasticsearch.xpack.esql.plan.logical.InlineStats;
 import org.elasticsearch.xpack.esql.plan.logical.Insist;
@@ -67,7 +68,7 @@ public enum FeatureMetric {
     CHANGE_POINT(ChangePoint.class::isInstance),
     INLINESTATS(InlineStats.class::isInstance),
     RERANK(Rerank.class::isInstance),
-    DEDUP(Dedup.class::isInstance),
+    FUSE(Fuse.class::isInstance),
     INSIST(Insist.class::isInstance),
     FORK(Fork.class::isInstance),
     RRF(RrfScoreEval.class::isInstance),
@@ -81,6 +82,7 @@ public enum FeatureMetric {
         UnresolvedRelation.class,
         EsqlProject.class,
         Project.class,
+        LinearScoreEval.class,
         Limit.class // LIMIT is managed in another way, see above
     );
 

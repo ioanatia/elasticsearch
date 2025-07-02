@@ -11,26 +11,24 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.license.License;
 import org.elasticsearch.license.XPackLicenseState;
 import org.elasticsearch.xpack.esql.LicenseAware;
-import org.elasticsearch.xpack.esql.capabilities.PostAnalysisVerificationAware;
-import org.elasticsearch.xpack.esql.common.Failures;
 import org.elasticsearch.xpack.esql.core.expression.Attribute;
+import org.elasticsearch.xpack.esql.core.expression.MapExpression;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
 import org.elasticsearch.xpack.esql.core.tree.Source;
 
 import java.io.IOException;
-import java.util.Locale;
 import java.util.Objects;
 
-import static org.elasticsearch.xpack.esql.common.Failure.fail;
-
-public class RrfScoreEval extends UnaryPlan implements PostAnalysisVerificationAware, LicenseAware {
+public class RrfScoreEval extends UnaryPlan implements LicenseAware {
     private final Attribute forkAttr;
     private final Attribute scoreAttr;
+    private final MapExpression options;
 
-    public RrfScoreEval(Source source, LogicalPlan child, Attribute scoreAttr, Attribute forkAttr) {
+    public RrfScoreEval(Source source, LogicalPlan child, Attribute scoreAttr, Attribute forkAttr, MapExpression options) {
         super(source, child);
         this.scoreAttr = scoreAttr;
         this.forkAttr = forkAttr;
+        this.options = options;
     }
 
     @Override
@@ -45,7 +43,7 @@ public class RrfScoreEval extends UnaryPlan implements PostAnalysisVerificationA
 
     @Override
     protected NodeInfo<? extends LogicalPlan> info() {
-        return NodeInfo.create(this, RrfScoreEval::new, child(), scoreAttr, forkAttr);
+        return NodeInfo.create(this, RrfScoreEval::new, child(), scoreAttr, forkAttr, options);
     }
 
     @Override
@@ -55,7 +53,7 @@ public class RrfScoreEval extends UnaryPlan implements PostAnalysisVerificationA
 
     @Override
     public UnaryPlan replaceChild(LogicalPlan newChild) {
-        return new RrfScoreEval(source(), newChild, scoreAttr, forkAttr);
+        return new RrfScoreEval(source(), newChild, scoreAttr, forkAttr, options);
     }
 
     public Attribute scoreAttribute() {
@@ -66,22 +64,13 @@ public class RrfScoreEval extends UnaryPlan implements PostAnalysisVerificationA
         return forkAttr;
     }
 
-    @Override
-    public void postAnalysisVerification(Failures failures) {
-        if (this.child() instanceof Fork == false) {
-            failures.add(
-                fail(
-                    this,
-                    "Invalid use of RRF. RRF can only be used after FORK, but found {}",
-                    child().sourceText().split(" ")[0].toUpperCase(Locale.ROOT)
-                )
-            );
-        }
+    public MapExpression options() {
+        return options;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), scoreAttr, forkAttr);
+        return Objects.hash(super.hashCode(), scoreAttr, forkAttr, options);
     }
 
     @Override
@@ -94,7 +83,10 @@ public class RrfScoreEval extends UnaryPlan implements PostAnalysisVerificationA
         }
 
         RrfScoreEval rrf = (RrfScoreEval) obj;
-        return child().equals(rrf.child()) && scoreAttr.equals(rrf.scoreAttribute()) && forkAttr.equals(forkAttribute());
+        return child().equals(rrf.child())
+            && scoreAttr.equals(rrf.scoreAttr)
+            && forkAttr.equals(rrf.forkAttr)
+            && options.equals(rrf.options);
     }
 
     @Override

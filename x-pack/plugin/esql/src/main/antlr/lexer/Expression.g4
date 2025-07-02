@@ -125,6 +125,10 @@ ASTERISK : '*';
 SLASH : '/';
 PERCENT : '%';
 
+GROUP: 'group';
+SCORE: 'score';
+
+
 LEFT_BRACES : '{';
 RIGHT_BRACES : '}';
 
