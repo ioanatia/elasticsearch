@@ -2,6 +2,9 @@
 
 **Parameters**
 
-`query`
-:   Boolean expression that contains full text function(s) to be scored.
+`left`
+:   first dense_vector to calculate cosine similarity
+
+`right`
+:   second dense_vector to calculate cosine similarity
 
