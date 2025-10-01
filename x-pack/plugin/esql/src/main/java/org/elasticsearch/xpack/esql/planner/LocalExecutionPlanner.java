@@ -504,7 +504,7 @@ public class LocalExecutionPlanner {
             throw new EsqlIllegalArgumentException("limit only supported with literal values");
         }
         return source.with(
-            new TopNOperatorFactory(limit, asList(elementTypes), asList(encoders), orders, context.pageSize(rowSize)),
+            new TopNOperatorFactory(limit, asList(elementTypes), asList(encoders), orders, context.pageSize(rowSize), topNExec.sortedInput()),
             source.layout
         );
     }
