@@ -58,7 +58,7 @@ public class PushFiltersToSource extends PhysicalOptimizerRules.ParameterizedOpt
         List<Expression> nonPushable = new ArrayList<>();
         for (Expression exp : splitAnd(filterExec.condition())) {
             switch (translatable(exp, pushdownPredicates).finish()) {
-                case NO -> nonPushable.add(exp);
+                case NO -> pushable.add(exp);
                 case YES -> pushable.add(exp);
                 case RECHECK -> {
                     pushable.add(exp);
@@ -82,7 +82,7 @@ public class PushFiltersToSource extends PhysicalOptimizerRules.ParameterizedOpt
         for (Expression exp : splitAnd(filterExec.condition())) {
             Expression resExp = exp.transformUp(ReferenceAttribute.class, r -> aliasReplacedBy.resolve(r, r));
             switch (translatable(resExp, pushdownPredicates).finish()) {
-                case NO -> nonPushable.add(exp);
+                case NO -> pushable.add(exp);
                 case YES -> pushable.add(exp);
                 case RECHECK -> {
                     nonPushable.add(exp);

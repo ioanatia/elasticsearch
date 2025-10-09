@@ -9,11 +9,11 @@ package org.elasticsearch.xpack.esql.planner;
 
 import org.elasticsearch.xpack.esql.EsqlIllegalArgumentException;
 import org.elasticsearch.xpack.esql.capabilities.TranslationAware;
-import org.elasticsearch.xpack.esql.core.QlIllegalArgumentException;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.expression.Expressions;
 import org.elasticsearch.xpack.esql.core.expression.FieldAttribute;
 import org.elasticsearch.xpack.esql.core.expression.MetadataAttribute;
+import org.elasticsearch.xpack.esql.core.querydsl.query.ComputeQuery;
 import org.elasticsearch.xpack.esql.core.querydsl.query.Query;
 import org.elasticsearch.xpack.esql.optimizer.rules.physical.local.LucenePushdownPredicates;
 import org.elasticsearch.xpack.esql.querydsl.query.SingleValueQuery;
@@ -31,12 +31,20 @@ public final class TranslatorHandler {
     private TranslatorHandler() {}
 
     public Query asQuery(LucenePushdownPredicates predicates, Expression e) {
-        if (e instanceof TranslationAware ta) {
-            Query query = ta.asQuery(predicates, this);
-            return ta instanceof TranslationAware.SingleValueTranslationAware sv ? wrapFunctionQuery(sv.singleValueField(), query) : query;
+        try {
+            if (e instanceof TranslationAware ta) {
+                Query query = ta.asQuery(predicates, this);
+                return ta instanceof TranslationAware.SingleValueTranslationAware sv
+                    ? wrapFunctionQuery(sv.singleValueField(), query)
+                    : query;
+            }
+        } catch (Exception exc) {
+            return new ComputeQuery(e.source(), e);
         }
 
-        throw new QlIllegalArgumentException("Don't know how to translate {} {}", e.nodeName(), e);
+        return new ComputeQuery(e.source(), e);
+
+        // throw new QlIllegalArgumentException("Don't know how to translate {} {}", e.nodeName(), e);
     }
 
     private static Query wrapFunctionQuery(Expression field, Query query) {
