@@ -566,12 +566,12 @@ public class SemanticTextFieldMapper extends FieldMapper implements InferenceFie
 
         if (fieldType().useLegacyFormat == false) {
             // Detect if field value is an object, which we don't support parsing
-            if (parser.currentToken() == XContentParser.Token.START_OBJECT) {
-                throw new DocumentParsingException(
-                    xContentLocation,
-                    "[" + CONTENT_TYPE + "] field [" + fullPath() + "] does not support object values"
-                );
-            }
+//            if (parser.currentToken() == XContentParser.Token.START_OBJECT) {
+//                throw new DocumentParsingException(
+//                    xContentLocation,
+//                    "[" + CONTENT_TYPE + "] field [" + fullPath() + "] does not support object values"
+//                );
+//            }
 
             // ignore the rest of the field value
             parser.skipChildren();
@@ -946,7 +946,7 @@ public class SemanticTextFieldMapper extends FieldMapper implements InferenceFie
                             null
                         );
                     }
-                    case TEXT_EMBEDDING -> {
+                    case MULTIMODAL_EMBEDDING, TEXT_EMBEDDING -> {
                         if (inferenceResults instanceof MlTextEmbeddingResults == false) {
                             throw new IllegalArgumentException(
                                 generateQueryInferenceResultsTypeMismatchMessage(inferenceResults, MlTextEmbeddingResults.NAME)
@@ -1261,7 +1261,7 @@ public class SemanticTextFieldMapper extends FieldMapper implements InferenceFie
 
                 yield sparseVectorMapperBuilder;
             }
-            case TEXT_EMBEDDING -> {
+            case MULTIMODAL_EMBEDDING, TEXT_EMBEDDING -> {
                 DenseVectorFieldMapper.Builder denseVectorMapperBuilder = new DenseVectorFieldMapper.Builder(
                     CHUNKED_EMBEDDINGS_FIELD,
                     indexVersionCreated,

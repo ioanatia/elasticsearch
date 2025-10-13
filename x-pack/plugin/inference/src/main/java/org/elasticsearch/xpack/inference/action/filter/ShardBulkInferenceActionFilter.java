@@ -38,6 +38,7 @@ import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexingPressure;
 import org.elasticsearch.index.mapper.InferenceMetadataFieldsMapper;
+import org.elasticsearch.inference.ChunkInferenceImageInput;
 import org.elasticsearch.inference.ChunkInferenceInput;
 import org.elasticsearch.inference.ChunkInferenceTextInput;
 import org.elasticsearch.inference.ChunkedInference;
@@ -96,7 +97,7 @@ public class ShardBulkInferenceActionFilter implements MappedActionFilter {
     private static final ByteSizeValue DEFAULT_BATCH_SIZE = ByteSizeValue.ofMb(1);
 
     /**
-     * Defines the cumulative size limit of input data before triggering a batch inference call.
+     * Defines the cumulative size limit of textInput data before triggering a batch inference call.
      * This setting controls how much data can be accumulated before an inference request is sent in batch.
      */
     public static Setting<ByteSizeValue> INDICES_INFERENCE_BATCH_SIZE = Setting.byteSizeSetting(
@@ -189,12 +190,12 @@ public class ShardBulkInferenceActionFilter implements MappedActionFilter {
     private record InferenceProvider(InferenceService service, Model model) {}
 
     /**
-     * A field inference request on a single input.
+     * A field inference request on a single textInput.
      * @param bulkItemIndex The index of the item in the original bulk request.
      * @param field The target field.
      * @param sourceField The source field.
      * @param input The input to run inference on.
-     * @param inputOrder The original order of the input.
+     * @param inputOrder The original order of the textInput.
      * @param offsetAdjustment The adjustment to apply to the chunk text offsets.
      * @param chunkingSettings Additional explicitly specified chunking settings, or null to use model defaults
      */
@@ -202,18 +203,20 @@ public class ShardBulkInferenceActionFilter implements MappedActionFilter {
         int bulkItemIndex,
         String field,
         String sourceField,
-        String input,
+        Object input,
         int inputOrder,
         int offsetAdjustment,
         ChunkingSettings chunkingSettings
-    ) {}
+    ) {
+        public String textInput() { return (String) input; }
+    }
 
     /**
      * The field inference response.
      * @param field The target field.
-     * @param sourceField The input that was used to run inference.
-     * @param input The input that was used to run inference.
-     * @param inputOrder The original order of the input.
+     * @param sourceField The textInput that was used to run inference.
+     * @param input The textInput that was used to run inference.
+     * @param inputOrder The original order of the textInput.
      * @param offsetAdjustment The adjustment to apply to the chunk text offsets.
      * @param model The model used to run inference.
      * @param chunkedResults The actual results.
@@ -319,6 +322,7 @@ public class ShardBulkInferenceActionFilter implements MappedActionFilter {
             }
         }
 
+        @SuppressWarnings("unchecked")
         private void executeChunkedInferenceAsync(
             final String inferenceId,
             @Nullable InferenceProvider inferenceProvider,
@@ -385,8 +389,14 @@ public class ShardBulkInferenceActionFilter implements MappedActionFilter {
                 return;
             }
             final List<ChunkInferenceInput> inputs = requests.stream()
-                .map(r -> new ChunkInferenceTextInput(r.input, r.chunkingSettings))
-                .collect(Collectors.toList());
+                .map(r -> {
+                    if (r.input() instanceof String) {
+                        return new ChunkInferenceTextInput(r.textInput(), r.chunkingSettings);
+                    }
+                    // TODO: this could fail in so many ugly ways - we need to verify the input
+                    var mapInput = (Map<String, String>) r.input();
+                    return new ChunkInferenceImageInput(mapInput.get("image_url"));
+                }).collect(Collectors.toList());
 
             ActionListener<List<ChunkedInference>> completionListener = new ActionListener<>() {
 
@@ -414,7 +424,7 @@ public class ShardBulkInferenceActionFilter implements MappedActionFilter {
                                     new FieldInferenceResponse(
                                         request.field(),
                                         request.sourceField(),
-                                        useLegacyFormat ? request.input() : null,
+                                        useLegacyFormat ? request.textInput() : null,
                                         request.inputOrder(),
                                         request.offsetAdjustment(),
                                         inferenceProvider.model,
@@ -477,6 +487,7 @@ public class ShardBulkInferenceActionFilter implements MappedActionFilter {
          *                    and the value is a list of associated {@link FieldInferenceRequest} objects.
          * @return The total content length of all newly added requests, or {@code 0} if no requests were added.
          */
+        @SuppressWarnings("unchecked")
         private long addFieldInferenceRequests(BulkItemRequest item, int itemIndex, Map<String, List<FieldInferenceRequest>> requestsMap) {
             boolean isUpdateRequest = false;
             final IndexRequestWithIndexingPressure indexRequest;
@@ -564,13 +575,15 @@ public class ShardBulkInferenceActionFilter implements MappedActionFilter {
                     }
 
                     var slot = ensureResponseAccumulatorSlot(itemIndex);
-                    final List<String> values;
-                    try {
-                        values = SemanticTextUtils.nodeStringValues(field, valueObj);
-                    } catch (Exception exc) {
-                        addInferenceResponseFailure(itemIndex, exc);
-                        break;
-                    }
+                    final List<Object> values = List.of(valueObj);
+//                    try {
+//
+//
+//                        values = SemanticTextUtils.nodeStringValues(field, valueObj);
+//                    } catch (Exception exc) {
+//                        addInferenceResponseFailure(itemIndex, exc);
+//                        break;
+//                    }
 
                     if (INFERENCE_API_FEATURE.check(licenseState) == false) {
                         addInferenceResponseFailure(itemIndex, LicenseUtils.newComplianceException(XPackField.INFERENCE));
@@ -579,26 +592,40 @@ public class ShardBulkInferenceActionFilter implements MappedActionFilter {
 
                     List<FieldInferenceRequest> requests = requestsMap.computeIfAbsent(inferenceId, k -> new ArrayList<>());
                     int offsetAdjustment = 0;
-                    for (String v : values) {
+                    for (Object v : values) {
                         if (incrementIndexingPressure(indexRequest, itemIndex) == false) {
                             return inputLength;
                         }
 
-                        if (v.isBlank()) {
-                            slot.addOrUpdateResponse(
-                                new FieldInferenceResponse(field, sourceField, v, order++, 0, null, EMPTY_CHUNKED_INFERENCE)
-                            );
-                        } else {
-                            requests.add(
-                                new FieldInferenceRequest(itemIndex, field, sourceField, v, order++, offsetAdjustment, chunkingSettings)
-                            );
-                            inputLength += v.length();
-                        }
+                        if (v instanceof String s) {
+                            if (s.isBlank()) {
+                                slot.addOrUpdateResponse(
+                                    new FieldInferenceResponse(field, sourceField, s, order++, 0, null, EMPTY_CHUNKED_INFERENCE)
+                                );
+                            } else {
+                                requests.add(
+                                    new FieldInferenceRequest(itemIndex, field, sourceField, v, order++, offsetAdjustment, chunkingSettings)
+                                );
+                                inputLength += s.length();
+                            }
 
-                        // When using the inference metadata fields format, all the input values are concatenated so that the
-                        // chunk text offsets are expressed in the context of a single string. Calculate the offset adjustment
-                        // to apply to account for this.
-                        offsetAdjustment += v.length() + 1; // Add one for separator char length
+                            // When using the inference metadata fields format, all the textInput values are concatenated so that the
+                            // chunk text offsets are expressed in the context of a single string. Calculate the offset adjustment
+                            // to apply to account for this.
+                            offsetAdjustment += s.length() + 1; // Add one for separator char length
+                        } else {
+                            String s = ((Map<String, String>) v).getOrDefault("image_url", "");
+
+                            if (s.isBlank()) {
+                                slot.addOrUpdateResponse(
+                                    new FieldInferenceResponse(field, sourceField, s, order++, 0, null, EMPTY_CHUNKED_INFERENCE)
+                                );
+                            } else {
+                                requests.add(
+                                    new FieldInferenceRequest(itemIndex, field, s, v, order++, offsetAdjustment, chunkingSettings)
+                                );
+                            }
+                        }
                     }
                 }
             }
