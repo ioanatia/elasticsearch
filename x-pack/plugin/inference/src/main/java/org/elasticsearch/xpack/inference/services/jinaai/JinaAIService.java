@@ -69,7 +69,11 @@ public class JinaAIService extends SenderService implements RerankingInferenceSe
     public static final String NAME = "jinaai";
 
     private static final String SERVICE_NAME = "Jina AI";
-    private static final EnumSet<TaskType> supportedTaskTypes = EnumSet.of(TaskType.TEXT_EMBEDDING, TaskType.RERANK);
+    private static final EnumSet<TaskType> supportedTaskTypes = EnumSet.of(
+        TaskType.TEXT_EMBEDDING,
+        TaskType.RERANK,
+        TaskType.MULTIMODAL_EMBEDDING
+    );
 
     public static final EnumSet<InputType> VALID_INPUT_TYPE_VALUES = EnumSet.of(
         InputType.INGEST,
@@ -167,14 +171,15 @@ public class JinaAIService extends SenderService implements RerankingInferenceSe
         ConfigurationParseContext context
     ) {
         return switch (taskType) {
-            case TEXT_EMBEDDING -> new JinaAIEmbeddingsModel(
+            case TEXT_EMBEDDING, MULTIMODAL_EMBEDDING -> new JinaAIEmbeddingsModel(
                 inferenceEntityId,
                 NAME,
                 serviceSettings,
                 taskSettings,
                 chunkingSettings,
                 secretSettings,
-                context
+                context,
+                taskType
             );
             case RERANK -> new JinaAIRerankModel(inferenceEntityId, NAME, serviceSettings, taskSettings, secretSettings, context);
             default -> throw new ElasticsearchStatusException(failureMessage, RestStatus.BAD_REQUEST);
@@ -193,7 +198,7 @@ public class JinaAIService extends SenderService implements RerankingInferenceSe
         Map<String, Object> secretSettingsMap = removeFromMapOrThrowIfNull(secrets, ModelSecrets.SECRET_SETTINGS);
 
         ChunkingSettings chunkingSettings = null;
-        if (TaskType.TEXT_EMBEDDING.equals(taskType)) {
+        if (TaskType.TEXT_EMBEDDING.equals(taskType) || TaskType.MULTIMODAL_EMBEDDING.equals(taskType)) {
             chunkingSettings = ChunkingSettingsBuilder.fromMap(removeFromMap(config, ModelConfigurations.CHUNKING_SETTINGS));
         }
 
@@ -214,7 +219,7 @@ public class JinaAIService extends SenderService implements RerankingInferenceSe
         Map<String, Object> taskSettingsMap = removeFromMapOrDefaultEmpty(config, ModelConfigurations.TASK_SETTINGS);
 
         ChunkingSettings chunkingSettings = null;
-        if (TaskType.TEXT_EMBEDDING.equals(taskType)) {
+        if (TaskType.TEXT_EMBEDDING.equals(taskType) || TaskType.MULTIMODAL_EMBEDDING.equals(taskType)) {
             chunkingSettings = ChunkingSettingsBuilder.fromMap(removeFromMap(config, ModelConfigurations.CHUNKING_SETTINGS));
         }
 

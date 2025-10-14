@@ -26,6 +26,7 @@ public class JinaAIEmbeddingsRequestEntityTests extends ESTestCase {
     public void testXContent_WritesAllFields_WhenTheyAreDefined() throws IOException {
         var entity = new JinaAIEmbeddingsRequestEntity(
             List.of("abc"),
+            List.of(),
             InputType.INTERNAL_INGEST,
             new JinaAIEmbeddingsTaskSettings(InputType.INGEST),
             "model",
@@ -43,6 +44,7 @@ public class JinaAIEmbeddingsRequestEntityTests extends ESTestCase {
     public void testXContent_WritesNoOptionalFields_WhenTheyAreNotDefined() throws IOException {
         var entity = new JinaAIEmbeddingsRequestEntity(
             List.of("abc"),
+            List.of(),
             null,
             JinaAIEmbeddingsTaskSettings.EMPTY_SETTINGS,
             "model",
@@ -60,6 +62,7 @@ public class JinaAIEmbeddingsRequestEntityTests extends ESTestCase {
     public void testXContent_EmbeddingTypesBit() throws IOException {
         var entity = new JinaAIEmbeddingsRequestEntity(
             List.of("abc"),
+            List.of(""),
             InputType.CLUSTERING,
             JinaAIEmbeddingsTaskSettings.EMPTY_SETTINGS,
             "model",
@@ -77,6 +80,7 @@ public class JinaAIEmbeddingsRequestEntityTests extends ESTestCase {
     public void testXContent_EmbeddingTypesBinary() throws IOException {
         var entity = new JinaAIEmbeddingsRequestEntity(
             List.of("abc"),
+            List.of(""),
             InputType.SEARCH,
             JinaAIEmbeddingsTaskSettings.EMPTY_SETTINGS,
             "model",

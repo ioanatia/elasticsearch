@@ -34,7 +34,8 @@ public class JinaAIEmbeddingsModel extends JinaAIModel {
         Map<String, Object> taskSettings,
         ChunkingSettings chunkingSettings,
         @Nullable Map<String, Object> secrets,
-        ConfigurationParseContext context
+        ConfigurationParseContext context,
+        TaskType taskType
     ) {
         this(
             inferenceId,
@@ -42,7 +43,8 @@ public class JinaAIEmbeddingsModel extends JinaAIModel {
             JinaAIEmbeddingsServiceSettings.fromMap(serviceSettings, context),
             JinaAIEmbeddingsTaskSettings.fromMap(taskSettings),
             chunkingSettings,
-            DefaultSecretSettings.fromMap(secrets)
+            DefaultSecretSettings.fromMap(secrets),
+            taskType
         );
     }
 
@@ -53,10 +55,11 @@ public class JinaAIEmbeddingsModel extends JinaAIModel {
         JinaAIEmbeddingsServiceSettings serviceSettings,
         JinaAIEmbeddingsTaskSettings taskSettings,
         ChunkingSettings chunkingSettings,
-        @Nullable DefaultSecretSettings secretSettings
+        @Nullable DefaultSecretSettings secretSettings,
+        TaskType taskType
     ) {
         super(
-            new ModelConfigurations(modelId, TaskType.TEXT_EMBEDDING, service, serviceSettings, taskSettings, chunkingSettings),
+            new ModelConfigurations(modelId, taskType, service, serviceSettings, taskSettings, chunkingSettings),
             new ModelSecrets(secretSettings),
             secretSettings,
             serviceSettings.getCommonSettings()

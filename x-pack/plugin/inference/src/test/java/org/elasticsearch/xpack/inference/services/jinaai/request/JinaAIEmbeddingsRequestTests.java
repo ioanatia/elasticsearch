@@ -286,6 +286,7 @@ public class JinaAIEmbeddingsRequestTests extends ESTestCase {
     }
 
     public static JinaAIEmbeddingsRequest createRequest(List<String> input, InputType inputType, JinaAIEmbeddingsModel model) {
-        return new JinaAIEmbeddingsRequest(input, inputType, model);
+        // this is just used in testing
+        return new JinaAIEmbeddingsRequest(input, inputType, model, List.of());
     }
 }

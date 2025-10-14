@@ -29,18 +29,20 @@ public class JinaAIEmbeddingsRequest extends JinaAIRequest {
 
     private final JinaAIAccount account;
     private final List<String> input;
+    private final List<String> imageUrls;
     private final InputType inputType;
     private final JinaAIEmbeddingsTaskSettings taskSettings;
     private final String model;
     private final String inferenceEntityId;
     private final JinaAIEmbeddingType embeddingType;
 
-    public JinaAIEmbeddingsRequest(List<String> input, InputType inputType, JinaAIEmbeddingsModel embeddingsModel) {
+    public JinaAIEmbeddingsRequest(List<String> input, InputType inputType, JinaAIEmbeddingsModel embeddingsModel, List<String> imageUrls) {
         Objects.requireNonNull(embeddingsModel);
 
         account = JinaAIAccount.of(embeddingsModel, JinaAIEmbeddingsRequest::buildDefaultUri);
         this.input = Objects.requireNonNull(input);
         this.inputType = inputType;
+        this.imageUrls = imageUrls == null ? List.of() : imageUrls;
         taskSettings = embeddingsModel.getTaskSettings();
         model = embeddingsModel.getServiceSettings().getCommonSettings().modelId();
         embeddingType = embeddingsModel.getServiceSettings().getEmbeddingType();
@@ -52,7 +54,7 @@ public class JinaAIEmbeddingsRequest extends JinaAIRequest {
         HttpPost httpPost = new HttpPost(account.uri());
 
         ByteArrayEntity byteEntity = new ByteArrayEntity(
-            Strings.toString(new JinaAIEmbeddingsRequestEntity(input, inputType, taskSettings, model, embeddingType))
+            Strings.toString(new JinaAIEmbeddingsRequestEntity(input, imageUrls, inputType, taskSettings, model, embeddingType))
                 .getBytes(StandardCharsets.UTF_8)
         );
         httpPost.setEntity(byteEntity);

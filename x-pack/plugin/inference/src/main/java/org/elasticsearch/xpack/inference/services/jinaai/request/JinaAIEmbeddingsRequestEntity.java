@@ -22,6 +22,7 @@ import static org.elasticsearch.inference.InputType.invalidInputTypeMessage;
 
 public record JinaAIEmbeddingsRequestEntity(
     List<String> input,
+    List<String> imageUrls,
     InputType inputType,
     JinaAIEmbeddingsTaskSettings taskSettings,
     @Nullable String model,
@@ -41,12 +42,27 @@ public record JinaAIEmbeddingsRequestEntity(
         Objects.requireNonNull(input);
         Objects.requireNonNull(taskSettings);
         Objects.requireNonNull(model);
+        Objects.requireNonNull(imageUrls);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
-        builder.field(INPUT_FIELD, input);
+
+        builder.startArray(INPUT_FIELD);
+        for (String s : input) {
+            builder.startObject();
+            builder.field("text", s);
+            builder.endObject();
+        }
+
+        for (String img : imageUrls) {
+            builder.startObject();
+            builder.field("image", img);
+            builder.endObject();
+        }
+
+        builder.endArray();
         builder.field(MODEL_FIELD, model);
 
         if (embeddingType != null) {

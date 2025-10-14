@@ -12,6 +12,7 @@ import org.elasticsearch.core.Nullable;
 import org.elasticsearch.inference.ChunkingSettings;
 import org.elasticsearch.inference.InputType;
 import org.elasticsearch.inference.SimilarityMeasure;
+import org.elasticsearch.inference.TaskType;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.xpack.inference.services.jinaai.JinaAIServiceSettings;
 import org.elasticsearch.xpack.inference.services.settings.DefaultSecretSettings;
@@ -129,7 +130,8 @@ public class JinaAIEmbeddingsModelTests extends ESTestCase {
             ),
             taskSettings,
             chunkingSettings,
-            new DefaultSecretSettings(new SecureString(apiKey.toCharArray()))
+            new DefaultSecretSettings(new SecureString(apiKey.toCharArray())),
+            TaskType.TEXT_EMBEDDING
         );
     }
 
@@ -154,7 +156,8 @@ public class JinaAIEmbeddingsModelTests extends ESTestCase {
             ),
             taskSettings,
             null,
-            new DefaultSecretSettings(new SecureString(apiKey.toCharArray()))
+            new DefaultSecretSettings(new SecureString(apiKey.toCharArray())),
+            TaskType.TEXT_EMBEDDING
         );
     }
 
@@ -180,7 +183,8 @@ public class JinaAIEmbeddingsModelTests extends ESTestCase {
             ),
             taskSettings,
             null,
-            new DefaultSecretSettings(new SecureString(apiKey.toCharArray()))
+            new DefaultSecretSettings(new SecureString(apiKey.toCharArray())),
+            TaskType.TEXT_EMBEDDING
         );
     }
 }

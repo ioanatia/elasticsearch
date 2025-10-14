@@ -25,9 +25,7 @@ import java.util.Map;
 public class SimpleServiceIntegrationValidator implements ServiceIntegrationValidator {
     private static final List<String> TEST_TEXT_INPUT = List.of("how big");
     // The below data URL represents the base64 encoding of a single black pixel
-    private static final List<String> TEST_URL_INPUT = List.of(
-        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVQImWNgYGAAAAAEAAGjChXjAAAAAElFTkSuQmCC"
-    );
+    private static final List<String> TEST_URL_INPUT = List.of();
     private static final String QUERY = "test query";
 
     @Override

@@ -54,9 +54,10 @@ public class JinaAIEmbeddingsRequestManager extends JinaAIRequestManager {
     ) {
         EmbeddingsInput input = inferenceInputs.castTo(EmbeddingsInput.class);
         List<String> docsInput = input.getInputs();
+        List<String> imageUrls = input.getImageUrls();
         InputType inputType = input.getInputType();
 
-        JinaAIEmbeddingsRequest request = new JinaAIEmbeddingsRequest(docsInput, inputType, model);
+        JinaAIEmbeddingsRequest request = new JinaAIEmbeddingsRequest(docsInput, inputType, model, imageUrls);
 
         execute(new ExecutableInferenceRequest(requestSender, logger, request, HANDLER, hasRequestCompletedFunction, listener));
     }
