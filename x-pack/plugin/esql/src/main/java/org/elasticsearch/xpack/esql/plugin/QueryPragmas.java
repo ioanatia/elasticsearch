@@ -80,6 +80,8 @@ public final class QueryPragmas implements Writeable {
         MappedFieldType.FieldExtractPreference.NONE
     );
 
+    public static final Setting<Boolean> FORK_IMPLICIT_LIMIT = Setting.boolSetting("fork_implicit_limit", true);
+
     /**
      * The maximum number of rounding points to push down to Lucene for the {@code roundTo} function at query level.
      * {@code ReplaceRoundToWithQueryAndTags} checks this threshold before rewriting {@code RoundTo} to range queries.
@@ -209,6 +211,13 @@ public final class QueryPragmas implements Writeable {
      */
     public MappedFieldType.FieldExtractPreference fieldExtractPreference() {
         return FIELD_EXTRACT_PREFERENCE.get(settings);
+    }
+
+    /**
+     * Returns true if we should add the implicit LIMIT to FORK branches
+     */
+    public boolean forkImplicitLimit() {
+        return FORK_IMPLICIT_LIMIT.get(settings);
     }
 
     public int roundToPushDownThreshold() {

@@ -19,6 +19,7 @@ import org.elasticsearch.xpack.esql.plan.logical.Fork;
 import org.elasticsearch.xpack.esql.plan.logical.Limit;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.esql.plan.logical.MvExpand;
+import org.elasticsearch.xpack.esql.plan.logical.PipelineBreaker;
 import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.RegexExtract;
 import org.elasticsearch.xpack.esql.plan.logical.UnaryPlan;
@@ -124,15 +125,18 @@ public final class PushDownAndCombineLimits extends OptimizerRules.Parameterized
             return forkBranch;
         }
 
+        boolean needsLimit = false;
         Limit descendantLimit = descendantLimit((UnaryPlan) forkBranch);
-        if (descendantLimit == null) {
-            return forkBranch;
+        if (descendantLimit != null) {
+            var descendantLimitValue = (int) descendantLimit.limit().fold(ctx.foldCtx());
+            var limitValue = (int) limit.limit().fold(ctx.foldCtx());
+            needsLimit = descendantLimitValue > limitValue;
+        } else if (forkBranchHasPipelineBreaker(forkBranch) == false) {
+            needsLimit = true;
         }
-        var descendantLimitValue = (int) descendantLimit.limit().fold(ctx.foldCtx());
-        var limitValue = (int) limit.limit().fold(ctx.foldCtx());
 
         // We push down a limit to a Fork branch when the Fork branch contains a limit with a higher value
-        return descendantLimitValue > limitValue ? new Limit(forkBranch.source(), limit.limit(), forkBranch) : forkBranch;
+        return needsLimit ? new Limit(forkBranch.source(), limit.limit(), forkBranch) : forkBranch;
     }
 
     private static Limit combineLimits(Limit upper, Limit lower, FoldContext ctx) {
@@ -195,6 +199,17 @@ public final class PushDownAndCombineLimits extends OptimizerRules.Parameterized
             }
         }
         return null;
+    }
+
+    private static boolean forkBranchHasPipelineBreaker(LogicalPlan plan) {
+        Holder<Boolean> hasPipelineBreaker = new Holder<>(false);
+        plan.forEachDown(p -> {
+            if (p instanceof PipelineBreaker) {
+                hasPipelineBreaker.set(true);
+            }
+        });
+
+        return hasPipelineBreaker.get();
     }
 
     /**
