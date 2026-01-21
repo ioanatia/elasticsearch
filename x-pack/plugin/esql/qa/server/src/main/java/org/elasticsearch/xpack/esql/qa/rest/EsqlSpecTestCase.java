@@ -88,6 +88,7 @@ public abstract class EsqlSpecTestCase extends ESRestTestCase {
     protected final CsvTestCase testCase;
     protected final String instructions;
     protected final Mode mode;
+    protected final Settings pragmas;
     protected static Boolean supportsTook;
     protected static Boolean supportsViews;
 
@@ -114,6 +115,18 @@ public abstract class EsqlSpecTestCase extends ESRestTestCase {
         CsvTestCase testCase,
         String instructions
     ) {
+        this(fileName, groupName, testName, lineNumber, testCase, instructions, Settings.EMPTY);
+    }
+
+    protected EsqlSpecTestCase(
+        String fileName,
+        String groupName,
+        String testName,
+        Integer lineNumber,
+        CsvTestCase testCase,
+        String instructions,
+        Settings pragmas
+    ) {
         this.fileName = fileName;
         this.groupName = groupName;
         this.testName = testName;
@@ -121,6 +134,7 @@ public abstract class EsqlSpecTestCase extends ESRestTestCase {
         this.testCase = testCase;
         this.instructions = instructions;
         this.mode = randomFrom(Mode.values());
+        this.pragmas = pragmas;
     }
 
     private static class Protected {
@@ -363,7 +377,7 @@ public abstract class EsqlSpecTestCase extends ESRestTestCase {
         addPragmas(builder);
 
         Map<String, Object> answer = RestEsqlTestCase.runEsql(
-            builder.query(query),
+            builder.query(query).pragmas(pragmas),
             testCase.assertWarnings(deduplicateExactWarnings()),
             profileLogger,
             mode

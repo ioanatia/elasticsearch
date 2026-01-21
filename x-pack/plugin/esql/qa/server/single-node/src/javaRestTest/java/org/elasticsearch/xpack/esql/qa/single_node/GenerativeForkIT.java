@@ -9,6 +9,7 @@ package org.elasticsearch.xpack.esql.qa.single_node;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.TestClustersThreadFilter;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
 import org.elasticsearch.xpack.esql.CsvSpecReader;
@@ -48,4 +49,5 @@ public class GenerativeForkIT extends GenerativeForkRestTest {
     protected boolean supportsSourceFieldMapping() {
         return cluster.getNumNodes() == 1;
     }
+
 }

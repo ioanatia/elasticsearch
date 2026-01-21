@@ -14,11 +14,14 @@ import org.elasticsearch.xpack.esql.core.expression.AttributeMap;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.expression.Expressions;
 import org.elasticsearch.xpack.esql.core.expression.NamedExpression;
+import org.elasticsearch.xpack.esql.core.util.Holder;
 import org.elasticsearch.xpack.esql.expression.Order;
 import org.elasticsearch.xpack.esql.plan.GeneratingPlan;
+import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
 import org.elasticsearch.xpack.esql.plan.logical.Eval;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.esql.plan.logical.OrderBy;
+import org.elasticsearch.xpack.esql.plan.logical.PipelineBreaker;
 import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.UnaryPlan;
 
@@ -193,6 +196,24 @@ class PushDownUtils {
         } else {
             throw new EsqlIllegalArgumentException("Expected child to be instance of Project");
         }
+    }
+
+    public static boolean shouldPushDownPipelineBreakerIntoForkBranch(LogicalPlan plan) {
+        // We only push down when no pipeline breaker can be found, and we query an index.
+        // If no EsRelation is found, we likely have a LocalRelation and we should definitely not push Limit and OrderBy
+        // as they will be removed by other optimizations.
+        Holder<Boolean> hasPipelineBreaker = new Holder<>(false);
+        Holder<Boolean> hasEsRelation = new Holder<>(false);
+        plan.forEachDown(p -> {
+            if (p instanceof PipelineBreaker) {
+                hasPipelineBreaker.set(true);
+            }
+            if (p instanceof EsRelation) {
+                hasEsRelation.set(true);
+            }
+        });
+
+        return hasEsRelation.get() && hasPipelineBreaker.get() == false;
     }
 
     private static <P extends LogicalPlan> P resolveRenamesFromProject(P plan, Project project) {

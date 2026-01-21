@@ -248,7 +248,19 @@ public class Mapper {
         if (fork instanceof UnionAll unionAll) {
             return mapUnionAll(unionAll);
         }
-        return new MergeExec(fork.source(), fork.children().stream().map(this::mapInner).toList(), fork.output());
+
+        int childSize = fork.children().size();
+
+        List<PhysicalPlan> newChildren = new ArrayList<>(childSize);
+        for (int i = 0; i < childSize; i++) {
+            PhysicalPlan child = mapInner(fork.children().get(i));
+            if (child instanceof FragmentExec) {
+                child = new ExchangeExec(child.source(), child);
+            }
+            newChildren.add(child);
+        }
+
+        return new MergeExec(fork.source(), newChildren, fork.output());
     }
 
     private PhysicalPlan mapUnionAll(UnionAll unionAll) {

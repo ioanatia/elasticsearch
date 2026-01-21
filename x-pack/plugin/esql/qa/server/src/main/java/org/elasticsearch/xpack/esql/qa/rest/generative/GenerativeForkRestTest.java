@@ -7,12 +7,14 @@
 
 package org.elasticsearch.xpack.esql.qa.rest.generative;
 
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xpack.esql.CsvSpecReader;
 import org.elasticsearch.xpack.esql.action.EsqlCapabilities;
 import org.elasticsearch.xpack.esql.qa.rest.EsqlSpecTestCase;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 
 import static org.elasticsearch.xpack.esql.CsvTestUtils.loadCsvSpecValues;
 import static org.elasticsearch.xpack.esql.action.EsqlCapabilities.Cap.APPROXIMATION;
@@ -39,7 +41,16 @@ public abstract class GenerativeForkRestTest extends EsqlSpecTestCase {
         CsvSpecReader.CsvTestCase testCase,
         String instructions
     ) {
-        super(fileName, groupName, testName, lineNumber, testCase, instructions);
+        super(fileName, groupName, testName, lineNumber, testCase, instructions, getPragmas(testCase));
+    }
+
+    private static Settings getPragmas(CsvSpecReader.CsvTestCase testCase) {
+        if (testCase.query.toUpperCase(Locale.ROOT).contains("SORT")) {
+            return Settings.EMPTY;
+        }
+
+        // return randomBoolean() ? Settings.EMPTY : Settings.builder().put("fork_implicit_limit", false).build();
+        return Settings.builder().put("fork_implicit_limit", false).build();
     }
 
     @Override
