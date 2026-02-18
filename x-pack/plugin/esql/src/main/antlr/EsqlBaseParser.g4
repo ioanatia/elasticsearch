@@ -217,7 +217,7 @@ stringOrParameter
     ;
 
 limitCommand
-    : LIMIT constant
+    : LIMIT limit=constant (OFFSET offset=constant)?
     ;
 
 sortCommand

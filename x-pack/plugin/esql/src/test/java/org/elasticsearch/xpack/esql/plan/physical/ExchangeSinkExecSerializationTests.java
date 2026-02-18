@@ -226,7 +226,7 @@ public class ExchangeSinkExecSerializationTests extends AbstractPhysicalPlanSeri
             index.indexNameWithModes(),
             keepAttributes
         );
-        Limit limit = new Limit(randomSource(), new Literal(randomSource(), 10, DataType.INTEGER), relation);
+        Limit limit = new Limit(randomSource(), new Literal(randomSource(), 10, DataType.INTEGER), null, relation);
         Project project = new Project(randomSource(), limit, limit.output());
         FragmentExec fragmentExec = new FragmentExec(project);
         ExchangeSinkExec exchangeSinkExec = new ExchangeSinkExec(randomSource(), fragmentExec.output(), false, fragmentExec);

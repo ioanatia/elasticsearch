@@ -148,7 +148,7 @@ public class AsyncOperatorTests extends ESTestCase {
         if (randomBoolean()) {
             int limit = between(0, ids.size());
             it = ids.subList(0, limit).iterator();
-            intermediateOperators.add(new LimitOperator(new Limiter(limit)));
+            intermediateOperators.add(new LimitOperator(new Limiter(limit), 0));
         } else {
             it = ids.iterator();
         }

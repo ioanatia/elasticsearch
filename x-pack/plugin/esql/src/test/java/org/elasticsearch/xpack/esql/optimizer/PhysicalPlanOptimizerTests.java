@@ -3445,6 +3445,7 @@ public class PhysicalPlanOptimizerTests extends ESTestCase {
             Source.EMPTY,
             exchange,
             new Literal(Source.EMPTY, 10000, DataType.INTEGER),
+            null,
             randomIntBetween(0, 1024)
         );
 
@@ -9426,6 +9427,7 @@ public class PhysicalPlanOptimizerTests extends ESTestCase {
                             plan.source(),
                             limit.child(),
                             new Literal(Source.EMPTY, 1000, INTEGER),
+                            null,
                             randomEstimatedRowSize()
                         ) {
                             @Override

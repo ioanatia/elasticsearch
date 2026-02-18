@@ -146,11 +146,17 @@ public class ChangePoint extends UnaryPlan
         Limit limit = new Limit(
             source(),
             new Literal(Source.EMPTY, ChangePointOperator.INPUT_VALUE_COUNT_LIMIT + 1, DataType.INTEGER),
+            null,
             orderBy
         );
         ChangePoint changePoint = new ChangePoint(source(), limit, value, key, targetType, targetPvalue);
         // The second Limit of N data points is to truncate the output.
-        return new Limit(source(), new Literal(Source.EMPTY, ChangePointOperator.INPUT_VALUE_COUNT_LIMIT, DataType.INTEGER), changePoint);
+        return new Limit(
+            source(),
+            new Literal(Source.EMPTY, ChangePointOperator.INPUT_VALUE_COUNT_LIMIT, DataType.INTEGER),
+            null,
+            changePoint
+        );
     }
 
     @Override

@@ -39,18 +39,18 @@ public class LimitOperator implements Operator {
 
     private Page lastInput;
 
-    private final Limiter limiter;
+    private final LimiterWithOffset limiter;
     private boolean finished;
 
-    public LimitOperator(Limiter limiter) {
+    public LimitOperator(LimiterWithOffset limiter) {
         this.limiter = limiter;
     }
 
     public static final class Factory implements OperatorFactory {
-        private final Limiter limiter;
+        private final LimiterWithOffset limiter;
 
-        public Factory(int limit) {
-            this.limiter = new Limiter(limit);
+        public Factory(int limit, int offset) {
+            this.limiter = new LimiterWithOffset(limit, offset);
         }
 
         @Override
@@ -66,7 +66,7 @@ public class LimitOperator implements Operator {
 
     @Override
     public boolean needsInput() {
-        return finished == false && lastInput == null && limiter.remaining() > 0;
+        return finished == false && limiter.remaining() > 0;
     }
 
     @Override
@@ -74,12 +74,15 @@ public class LimitOperator implements Operator {
         assert lastInput == null : "has pending input page";
         rowsReceived += page.getPositionCount();
 
-        final int acceptedRows = limiter.tryAccumulateHits(page.getPositionCount());
-        if (acceptedRows == 0) {
+        var status = limiter.tryAccumulateHits(page.getPositionCount());
+
+        if (status.accepted() == 0) {
             page.releaseBlocks();
-            assert isFinished();
-        } else if (acceptedRows < page.getPositionCount()) {
-            lastInput = truncatePage(page, acceptedRows);
+            if (status.offset() == 0) {
+                assert isFinished();
+            }
+        } else if (status.accepted() < page.getPositionCount()) {
+            lastInput = truncatePage(page, status.offset(), status.accepted());
         } else {
             lastInput = page;
         }
@@ -92,7 +95,7 @@ public class LimitOperator implements Operator {
 
     @Override
     public boolean isFinished() {
-        return lastInput == null && (finished || limiter.remaining() == 0);
+        return finished || limiter.remaining() == 0;
     }
 
     @Override
@@ -112,10 +115,10 @@ public class LimitOperator implements Operator {
         return result;
     }
 
-    private static Page truncatePage(Page page, int upTo) {
-        int[] filter = new int[upTo];
-        for (int i = 0; i < upTo; i++) {
-            filter[i] = i;
+    private static Page truncatePage(Page page, int offset, int rowsToKeep) {
+        int[] filter = new int[rowsToKeep];
+        for (int i = 0; i < rowsToKeep; i++) {
+            filter[i] = i + offset;
         }
         final Block[] blocks = new Block[page.getBlockCount()];
         Page result = null;

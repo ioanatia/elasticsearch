@@ -19,7 +19,7 @@ public class LimitExecSerializationTests extends AbstractPhysicalPlanSerializati
         Source source = randomSource();
         PhysicalPlan child = randomChild(depth);
         Expression limit = randomLimit();
-        return new LimitExec(source, child, limit, randomEstimatedRowSize());
+        return new LimitExec(source, child, limit, null, randomEstimatedRowSize());
     }
 
     private static Expression randomLimit() {
@@ -42,7 +42,7 @@ public class LimitExecSerializationTests extends AbstractPhysicalPlanSerializati
             case 2 -> estimatedRowSize = randomValueOtherThan(estimatedRowSize, LimitExecSerializationTests::randomEstimatedRowSize);
             default -> throw new AssertionError("Unexpected case");
         }
-        return new LimitExec(instance.source(), child, limit, estimatedRowSize);
+        return new LimitExec(instance.source(), child, limit, null, estimatedRowSize);
     }
 
     @Override

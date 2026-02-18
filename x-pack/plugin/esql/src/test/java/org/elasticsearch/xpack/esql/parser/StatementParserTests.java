@@ -1971,6 +1971,7 @@ public class StatementParserTests extends AbstractStatementParserTests {
             new Limit(
                 EMPTY,
                 new Literal(EMPTY, 1, INTEGER),
+                null,
                 new Filter(
                     EMPTY,
                     new Eval(EMPTY, relation("test"), List.of(new Alias(EMPTY, "x", function("toString", List.of(attribute("f1.")))))),
@@ -1998,6 +1999,7 @@ public class StatementParserTests extends AbstractStatementParserTests {
             new Limit(
                 EMPTY,
                 new Literal(EMPTY, 1, INTEGER),
+                null,
                 new Filter(
                     EMPTY,
                     new Eval(EMPTY, relation("test"), List.of(new Alias(EMPTY, "x", function("toString", List.of(attribute("f1..f.2")))))),

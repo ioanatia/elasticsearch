@@ -11,6 +11,8 @@ import org.elasticsearch.compute.aggregation.AggregatorMode;
 import org.elasticsearch.index.IndexMode;
 import org.elasticsearch.xpack.esql.EsqlIllegalArgumentException;
 import org.elasticsearch.xpack.esql.core.expression.Attribute;
+import org.elasticsearch.xpack.esql.core.expression.Literal;
+import org.elasticsearch.xpack.esql.core.type.DataType;
 import org.elasticsearch.xpack.esql.expression.function.grouping.GroupingFunction;
 import org.elasticsearch.xpack.esql.plan.logical.Aggregate;
 import org.elasticsearch.xpack.esql.plan.logical.BinaryPlan;
@@ -134,13 +136,15 @@ public class Mapper {
         }
 
         if (unary instanceof Limit limit) {
-            mappedChild = addExchangeForFragment(limit, mappedChild);
-            return new LimitExec(limit.source(), mappedChild, limit.limit(), null);
+            mappedChild = addExchangeForFragment(limit.withOffsetFoldedIntoLimit(), mappedChild);
+            return new LimitExec(limit.source(), mappedChild, limit.limit(), limit.offset(), null);
         }
 
         if (unary instanceof TopN topN) {
-            mappedChild = addExchangeForFragment(topN, mappedChild);
-            var topNExec = new TopNExec(topN.source(), mappedChild, topN.order(), topN.limit(), null);
+            mappedChild = addExchangeForFragment(topN.withOffsetFoldedIntoLimit(), mappedChild);
+            Literal newLimit = new Literal(topN.source(), topN.limitValue() + topN.offsetValue(), DataType.INTEGER);
+
+            var topNExec = new TopNExec(topN.source(), mappedChild, topN.order(), newLimit, topN.offset(), null);
 
             if (mappedChild instanceof ExchangeExec exchangeExec) {
                 // If the data nodes run a TopN, the TopN in the coordinator will receive already sorted data

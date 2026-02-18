@@ -369,7 +369,7 @@ public class PushDownFilterAndLimitIntoUnionAll extends OptimizerRules.Parameter
 
     private static Limit planWithLimit(LogicalPlan plan, int limitValue) {
         Source source = plan.source();
-        return new Limit(source, new Literal(source, limitValue, DataType.INTEGER), plan);
+        return new Limit(source, new Literal(source, limitValue, DataType.INTEGER), null, plan);
     }
 
     /**

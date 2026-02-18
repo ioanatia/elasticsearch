@@ -6,17 +6,23 @@
  */
 package org.elasticsearch.xpack.esql.plan.logical;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.lucene.BytesRefs;
 import org.elasticsearch.xpack.esql.capabilities.TelemetryAware;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
+import org.elasticsearch.xpack.esql.core.expression.Literal;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
 import org.elasticsearch.xpack.esql.core.tree.Source;
+import org.elasticsearch.xpack.esql.core.type.DataType;
 import org.elasticsearch.xpack.esql.io.stream.PlanStreamInput;
 
 import java.io.IOException;
 import java.util.Objects;
+
+import static org.elasticsearch.xpack.esql.type.EsqlDataTypeConverter.stringToInt;
 
 public class Limit extends UnaryPlan implements TelemetryAware, PipelineBreaker, ExecutesOn {
     public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(LogicalPlan.class, "Limit", Limit::new);
@@ -35,19 +41,22 @@ public class Limit extends UnaryPlan implements TelemetryAware, PipelineBreaker,
      */
     private final transient boolean local;
 
+    private final Expression offset;
+
     /**
      * Default way to create a new instance. Do not use this to copy an existing instance, as this sets {@link Limit#duplicated}
      * and {@link Limit#local} to {@code false}.
      */
-    public Limit(Source source, Expression limit, LogicalPlan child) {
-        this(source, limit, child, false, false);
+    public Limit(Source source, Expression limit, Expression offset, LogicalPlan child) {
+        this(source, limit, offset, child, false, false);
     }
 
-    public Limit(Source source, Expression limit, LogicalPlan child, boolean duplicated, boolean local) {
+    public Limit(Source source, Expression limit, Expression offset, LogicalPlan child, boolean duplicated, boolean local) {
         super(source, child);
         this.limit = limit;
         this.duplicated = duplicated;
         this.local = local;
+        this.offset = offset;
     }
 
     /**
@@ -57,6 +66,7 @@ public class Limit extends UnaryPlan implements TelemetryAware, PipelineBreaker,
         this(
             Source.readFrom((PlanStreamInput) in),
             in.readNamedWriteable(Expression.class),
+            null,
             in.readNamedWriteable(LogicalPlan.class),
             false,
             false
@@ -82,20 +92,24 @@ public class Limit extends UnaryPlan implements TelemetryAware, PipelineBreaker,
 
     @Override
     protected NodeInfo<Limit> info() {
-        return NodeInfo.create(this, Limit::new, limit, child(), duplicated, local);
+        return NodeInfo.create(this, Limit::new, limit, offset, child(), duplicated, local);
     }
 
     @Override
     public Limit replaceChild(LogicalPlan newChild) {
-        return new Limit(source(), limit, newChild, duplicated, local);
+        return new Limit(source(), limit, offset, newChild, duplicated, local);
     }
 
     public Expression limit() {
         return limit;
     }
 
+    public Expression offset() {
+        return offset;
+    }
+
     public Limit withLimit(Expression limit) {
-        return new Limit(source(), limit, child(), duplicated, local);
+        return new Limit(source(), limit, offset, child(), duplicated, local);
     }
 
     public boolean duplicated() {
@@ -107,11 +121,36 @@ public class Limit extends UnaryPlan implements TelemetryAware, PipelineBreaker,
     }
 
     public Limit withDuplicated(boolean duplicated) {
-        return new Limit(source(), limit, child(), duplicated, local);
+        return new Limit(source(), limit, offset, child(), duplicated, local);
     }
 
     public Limit withLocal(boolean newLocal) {
-        return new Limit(source(), limit, child(), duplicated, newLocal);
+        return new Limit(source(), limit, offset, child(), duplicated, newLocal);
+    }
+
+    public int limitValue() {
+        if (limit instanceof Literal literal) {
+            Object val = literal.value() instanceof BytesRef br ? BytesRefs.toString(br) : literal.value();
+            return stringToInt(val.toString());
+        }
+        throw new IllegalArgumentException("TopNExec limit must be a literal");
+    }
+
+    public int offsetValue() {
+        if (offset == null) {
+            return 0;
+        }
+        if (offset instanceof Literal literal) {
+            Object val = literal.value() instanceof BytesRef br ? BytesRefs.toString(br) : literal.value();
+            return stringToInt(val.toString());
+        }
+        throw new IllegalArgumentException("TopNExec offset must be a literal");
+    }
+
+    public Limit withOffsetFoldedIntoLimit() {
+        Literal newLimit = new Literal(source(), limitValue() + offsetValue(), DataType.INTEGER);
+
+        return new Limit(source(), newLimit, null, child(), duplicated, local);
     }
 
     @Override
@@ -121,7 +160,7 @@ public class Limit extends UnaryPlan implements TelemetryAware, PipelineBreaker,
 
     @Override
     public int hashCode() {
-        return Objects.hash(limit, child(), duplicated, local);
+        return Objects.hash(limit, offset, child(), duplicated, local);
     }
 
     @Override
@@ -138,7 +177,8 @@ public class Limit extends UnaryPlan implements TelemetryAware, PipelineBreaker,
         return Objects.equals(limit, other.limit)
             && Objects.equals(child(), other.child())
             && (duplicated == other.duplicated)
-            && (local == other.local);
+            && (local == other.local)
+            && Objects.equals(offset, other.offset);
     }
 
     @Override

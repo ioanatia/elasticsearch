@@ -551,19 +551,39 @@ public class LogicalPlanBuilder extends ExpressionBuilder {
     @Override
     public PlanFactory visitLimitCommand(EsqlBaseParser.LimitCommandContext ctx) {
         Source source = source(ctx);
-        Object val = expression(ctx.constant()).fold(FoldContext.small() /* TODO remove me */);
-        if (val instanceof Integer i && i >= 0) {
-            return input -> new Limit(source, new Literal(source, i, DataType.INTEGER), input);
+        Object val = expression(ctx.limit).fold(FoldContext.small() /* TODO remove me */);
+
+        // TODO make this nicer?
+        Object offsetVal = ctx.offset != null ? expression(ctx.offset).fold(FoldContext.small()) : null;
+        if (offsetVal != null && offsetVal instanceof Integer == false) {
+            String offsetValueType = expression(ctx.limit).dataType().typeName();
+            throw new ParsingException(
+                source,
+                "value of ["
+                    + source.text()
+                    + "] must be a non negative integer, found value ["
+                    + ctx.limit.getText()
+                    + "] type ["
+                    + offsetValueType
+                    + "]"
+            );
         }
 
-        String valueType = expression(ctx.constant()).dataType().typeName();
+        if (val instanceof Integer i && i >= 0) {
+            var offsetExpr = offsetVal != null
+                ? new Literal(source, offsetVal, DataType.INTEGER)
+                : new Literal(source, 0, DataType.INTEGER);
+            return input -> new Limit(source, new Literal(source, i, DataType.INTEGER), offsetExpr, input);
+        }
+
+        String valueType = expression(ctx.limit).dataType().typeName();
 
         throw new ParsingException(
             source,
             "value of ["
                 + source.text()
                 + "] must be a non negative integer, found value ["
-                + ctx.constant().getText()
+                + ctx.limit.getText()
                 + "] type ["
                 + valueType
                 + "]"

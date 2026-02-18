@@ -237,6 +237,7 @@ public class TopNOperator implements Operator, Accountable {
 
     public record TopNOperatorFactory(
         int topCount,
+        int offset,
         List<ElementType> elementTypes,
         List<TopNEncoder> encoders,
         List<SortOrder> sortOrders,
@@ -257,6 +258,7 @@ public class TopNOperator implements Operator, Accountable {
                 driverContext.blockFactory(),
                 driverContext.breaker(),
                 topCount,
+                offset,
                 elementTypes,
                 encoders,
                 sortOrders,
@@ -290,6 +292,7 @@ public class TopNOperator implements Operator, Accountable {
     private final List<TopNEncoder> encoders;
     private final List<SortOrder> sortOrders;
     private final boolean[] channelInKey;
+    private final int offset;
 
     private Queue inputQueue;
     private Row spare;
@@ -327,6 +330,7 @@ public class TopNOperator implements Operator, Accountable {
         BlockFactory blockFactory,
         CircuitBreaker breaker,
         int topCount,
+        int offset,
         List<ElementType> elementTypes,
         List<TopNEncoder> encoders,
         List<SortOrder> sortOrders,
@@ -339,7 +343,8 @@ public class TopNOperator implements Operator, Accountable {
         this.elementTypes = elementTypes;
         this.encoders = encoders;
         this.sortOrders = sortOrders;
-        this.inputQueue = Queue.build(breaker, topCount);
+        this.inputQueue = Queue.build(breaker, topCount + offset);
+        this.offset = offset;
         this.inputOrdering = inputOrdering;
         this.channelInKey = new boolean[elementTypes.size()];
         for (SortOrder so : sortOrders) {
@@ -614,7 +619,7 @@ public class TopNOperator implements Operator, Accountable {
         }
 
         List<Row> rows = new ArrayList<>(inputQueue.size());
-        while (inputQueue.size() > 0) {
+        while (inputQueue.size() > offset) {
             rows.add(inputQueue.pop());
         }
         Collections.reverse(rows);

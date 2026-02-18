@@ -156,12 +156,12 @@ public class PushDownAndCombineLimitsTests extends ESTestCase {
 
         for (PushDownLimitTestCase<? extends UnaryPlan> pushableLimitTestCase : PUSHABLE_LIMIT_TEST_CASES) {
             int precedingLimitValue = randomIntBetween(1, 10_000);
-            Limit precedingLimit = new Limit(EMPTY, new Literal(EMPTY, precedingLimitValue, INTEGER), relation);
+            Limit precedingLimit = new Limit(EMPTY, new Literal(EMPTY, precedingLimitValue, INTEGER), null, relation);
 
             LogicalPlan pushableLimitTestPlan = pushableLimitTestCase.buildPlan(precedingLimit, a);
 
             int pushableLimitValue = randomIntBetween(1, 10_000);
-            Limit pushableLimit = new Limit(EMPTY, new Literal(EMPTY, pushableLimitValue, INTEGER), pushableLimitTestPlan);
+            Limit pushableLimit = new Limit(EMPTY, new Literal(EMPTY, pushableLimitValue, INTEGER), null, pushableLimitTestPlan);
 
             LogicalPlan optimizedPlan = optimizePlan(pushableLimit);
 
@@ -169,7 +169,7 @@ public class PushDownAndCombineLimitsTests extends ESTestCase {
 
             assertEquals(
                 as(optimizedPlan, UnaryPlan.class).child(),
-                new Limit(EMPTY, new Literal(EMPTY, Math.min(pushableLimitValue, precedingLimitValue), INTEGER), relation)
+                new Limit(EMPTY, new Literal(EMPTY, Math.min(pushableLimitValue, precedingLimitValue), INTEGER), null, relation)
             );
         }
     }
@@ -181,10 +181,10 @@ public class PushDownAndCombineLimitsTests extends ESTestCase {
 
         for (PushDownLimitTestCase<? extends UnaryPlan> nonPushableLimitTestCase : NON_PUSHABLE_LIMIT_TEST_CASES) {
             int precedingLimitValue = randomIntBetween(1, 10_000);
-            Limit precedingLimit = new Limit(EMPTY, new Literal(EMPTY, precedingLimitValue, INTEGER), relation);
+            Limit precedingLimit = new Limit(EMPTY, new Literal(EMPTY, precedingLimitValue, INTEGER), null, relation);
             UnaryPlan nonPushableLimitTestPlan = nonPushableLimitTestCase.buildPlan(precedingLimit, a);
             int nonPushableLimitValue = randomIntBetween(1, 10_000);
-            Limit nonPushableLimit = new Limit(EMPTY, new Literal(EMPTY, nonPushableLimitValue, INTEGER), nonPushableLimitTestPlan);
+            Limit nonPushableLimit = new Limit(EMPTY, new Literal(EMPTY, nonPushableLimitValue, INTEGER), null, nonPushableLimitTestPlan);
             Limit optimizedPlan = as(optimizePlan(nonPushableLimit), Limit.class);
             nonPushableLimitTestCase.checkOptimizedPlan(nonPushableLimitTestPlan, optimizedPlan.child());
             assertEquals(
@@ -192,6 +192,7 @@ public class PushDownAndCombineLimitsTests extends ESTestCase {
                 new Limit(
                     EMPTY,
                     new Literal(EMPTY, Math.min(nonPushableLimitValue, precedingLimitValue), INTEGER),
+                    null,
                     nonPushableLimitTestPlan
                 )
             );
@@ -240,11 +241,11 @@ public class PushDownAndCombineLimitsTests extends ESTestCase {
 
         for (PushDownLimitTestCase<? extends LogicalPlan> duplicatingTestCase : DUPLICATING_TEST_CASES) {
             int precedingLimitValue = randomIntBetween(1, 10_000);
-            Limit precedingLimit = new Limit(EMPTY, new Literal(EMPTY, precedingLimitValue, INTEGER), relation);
+            Limit precedingLimit = new Limit(EMPTY, new Literal(EMPTY, precedingLimitValue, INTEGER), null, relation);
             LogicalPlan duplicatingLimitTestPlan = duplicatingTestCase.buildPlan(precedingLimit, a);
             // Explicitly raise the probability of equal limits, to test for https://github.com/elastic/elasticsearch/issues/139250
             int upperLimitValue = randomBoolean() ? precedingLimitValue : randomIntBetween(1, precedingLimitValue);
-            Limit upperLimit = new Limit(EMPTY, new Literal(EMPTY, upperLimitValue, INTEGER), duplicatingLimitTestPlan);
+            Limit upperLimit = new Limit(EMPTY, new Literal(EMPTY, upperLimitValue, INTEGER), null, duplicatingLimitTestPlan);
             Limit optimizedPlan = as(optimizePlan(upperLimit), Limit.class);
             duplicatingTestCase.checkOptimizedPlan(duplicatingLimitTestPlan, optimizedPlan.child());
             assertTrue(optimizedPlan.duplicated());

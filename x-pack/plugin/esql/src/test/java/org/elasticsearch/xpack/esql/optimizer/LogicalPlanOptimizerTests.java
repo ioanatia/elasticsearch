@@ -1049,10 +1049,10 @@ public class LogicalPlanOptimizerTests extends AbstractLogicalPlanOptimizerTests
         var limitValues = new int[] { randomIntBetween(10, 99), randomIntBetween(100, 1000) };
         var firstLimit = randomBoolean() ? 0 : 1;
         var secondLimit = firstLimit == 0 ? 1 : 0;
-        var oneLimit = new Limit(EMPTY, L(limitValues[firstLimit]), emptySource());
-        var anotherLimit = new Limit(EMPTY, L(limitValues[secondLimit]), oneLimit);
+        var oneLimit = new Limit(EMPTY, L(limitValues[firstLimit]), null, emptySource());
+        var anotherLimit = new Limit(EMPTY, L(limitValues[secondLimit]), null, oneLimit);
         assertEquals(
-            new Limit(EMPTY, L(Math.min(limitValues[0], limitValues[1])), emptySource()),
+            new Limit(EMPTY, L(Math.min(limitValues[0], limitValues[1])), null, emptySource()),
             new PushDownAndCombineLimits().rule(anotherLimit, logicalOptimizerCtx)
         );
     }
@@ -1072,13 +1072,20 @@ public class LogicalPlanOptimizerTests extends AbstractLogicalPlanOptimizerTests
             default -> throw new IllegalArgumentException();
         };
 
-        var limit = new Limit(EMPTY, L(10), join);
+        var limit = new Limit(EMPTY, L(10), null, join);
 
         var optimizedPlan = rule.apply(limit, logicalOptimizerCtx);
 
         var expectedPlan = join instanceof InlineJoin
-            ? new Limit(limit.source(), limit.limit(), join, false, false)
-            : new Limit(limit.source(), limit.limit(), join.replaceChildren(limit.replaceChild(join.left()), join.right()), true, false);
+            ? new Limit(limit.source(), limit.limit(), null, join, false, false)
+            : new Limit(
+                limit.source(),
+                limit.limit(),
+                null,
+                join.replaceChildren(limit.replaceChild(join.left()), join.right()),
+                true,
+                false
+            );
 
         assertEquals(expectedPlan, optimizedPlan);
 
@@ -1098,9 +1105,9 @@ public class LogicalPlanOptimizerTests extends AbstractLogicalPlanOptimizerTests
 
         for (int i = 0; i < numberOfLimits; i++) {
             var value = i == limitWithMinimum ? minimum : randomIntBetween(100, 1000);
-            plan = new Limit(EMPTY, L(value), plan);
+            plan = new Limit(EMPTY, L(value), null, plan);
         }
-        assertEquals(new Limit(EMPTY, L(minimum), relation), logicalOptimizer.optimize(plan));
+        assertEquals(new Limit(EMPTY, L(minimum), null, relation), logicalOptimizer.optimize(plan));
     }
 
     @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/115311")
@@ -8806,7 +8813,7 @@ public class LogicalPlanOptimizerTests extends AbstractLogicalPlanOptimizerTests
                     if (appliedCount.get() == 0) {
                         appliedCount.set(appliedCount.get() + 1);
                         Limit limit = as(plan, Limit.class);
-                        Limit newLimit = new Limit(plan.source(), limit.limit(), limit.child()) {
+                        Limit newLimit = new Limit(plan.source(), limit.limit(), null, limit.child()) {
                             @Override
                             public List<Attribute> output() {
                                 List<Attribute> oldOutput = super.output();

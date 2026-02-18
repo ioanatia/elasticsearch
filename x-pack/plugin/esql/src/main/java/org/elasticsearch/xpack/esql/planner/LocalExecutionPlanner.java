@@ -7,7 +7,6 @@
 
 package org.elasticsearch.xpack.esql.planner;
 
-import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.common.lucene.BytesRefs;
 import org.elasticsearch.common.settings.Settings;
@@ -78,7 +77,6 @@ import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.expression.Expressions;
 import org.elasticsearch.xpack.esql.core.expression.FieldAttribute;
 import org.elasticsearch.xpack.esql.core.expression.FoldContext;
-import org.elasticsearch.xpack.esql.core.expression.Literal;
 import org.elasticsearch.xpack.esql.core.expression.MetadataAttribute;
 import org.elasticsearch.xpack.esql.core.expression.NameId;
 import org.elasticsearch.xpack.esql.core.expression.NamedExpression;
@@ -158,7 +156,6 @@ import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.joining;
 import static org.elasticsearch.compute.operator.ProjectOperator.ProjectOperatorFactory;
 import static org.elasticsearch.xpack.esql.plan.logical.MMR.getMMRLimitValue;
-import static org.elasticsearch.xpack.esql.type.EsqlDataTypeConverter.stringToInt;
 
 /**
  * The local execution planner takes a plan (represented as PlanNode tree / digraph) as input and creates the corresponding
@@ -532,16 +529,13 @@ public class LocalExecutionPlanner {
             );
         }).toList();
 
-        int limit;
-        if (topNExec.limit() instanceof Literal literal) {
-            Object val = literal.value() instanceof BytesRef br ? BytesRefs.toString(br) : literal.value();
-            limit = stringToInt(val.toString());
-        } else {
-            throw new EsqlIllegalArgumentException("limit only supported with literal values");
-        }
+        int limit = topNExec.limitValue();
+        int offset = topNExec.offsetValue();
+
         return source.with(
             new TopNOperatorFactory(
                 limit,
+                offset,
                 asList(elementTypes),
                 asList(encoders),
                 orders,
@@ -1041,7 +1035,10 @@ public class LocalExecutionPlanner {
 
     private PhysicalOperation planLimit(LimitExec limit, LocalExecutionPlannerContext context) {
         PhysicalOperation source = plan(limit.child(), context);
-        return source.with(new LimitOperator.Factory((Integer) limit.limit().fold(context.foldCtx)), source.layout);
+
+        Integer offsetVal = limit.offset() != null ? (Integer) limit.offset().fold(context.foldCtx) : 0;
+
+        return source.with(new LimitOperator.Factory((Integer) limit.limit().fold(context.foldCtx), offsetVal), source.layout);
     }
 
     private PhysicalOperation planMvExpand(MvExpandExec mvExpandExec, LocalExecutionPlannerContext context) {

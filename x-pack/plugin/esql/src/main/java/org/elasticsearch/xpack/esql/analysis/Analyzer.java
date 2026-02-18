@@ -1870,7 +1870,7 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
                                                                                         // entries to the max
             }
             var source = logicalPlan.source();
-            return new Limit(source, new Literal(source, limit, DataType.INTEGER), logicalPlan);
+            return new Limit(source, new Literal(source, limit, DataType.INTEGER), null, logicalPlan);
         }
     }
 

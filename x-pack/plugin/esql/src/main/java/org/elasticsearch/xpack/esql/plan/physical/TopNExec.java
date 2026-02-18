@@ -7,13 +7,16 @@
 
 package org.elasticsearch.xpack.esql.plan.physical;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.lucene.BytesRefs;
 import org.elasticsearch.compute.operator.topn.TopNOperator.InputOrdering;
 import org.elasticsearch.xpack.esql.core.expression.Attribute;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
+import org.elasticsearch.xpack.esql.core.expression.Literal;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
 import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.core.type.DataType;
@@ -24,6 +27,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+
+import static org.elasticsearch.xpack.esql.type.EsqlDataTypeConverter.stringToInt;
 
 public class TopNExec extends UnaryExec implements EstimatesRowSize {
     private static final TransportVersion ESQL_TOPN_AVOID_RESORTING = TransportVersion.fromName("esql_topn_avoid_resorting");
@@ -36,6 +41,7 @@ public class TopNExec extends UnaryExec implements EstimatesRowSize {
 
     private final Expression limit;
     private final List<Order> order;
+    private final Expression offset;
     /**
      * Attributes that may be extracted as doc values even if that makes them
      * less accurate. This is mostly used for geo fields which lose a lot of
@@ -55,8 +61,8 @@ public class TopNExec extends UnaryExec implements EstimatesRowSize {
 
     private final InputOrdering inputOrdering;
 
-    public TopNExec(Source source, PhysicalPlan child, List<Order> order, Expression limit, Integer estimatedRowSize) {
-        this(source, child, order, limit, estimatedRowSize, Set.of(), InputOrdering.NOT_SORTED);
+    public TopNExec(Source source, PhysicalPlan child, List<Order> order, Expression limit, Expression offset, Integer estimatedRowSize) {
+        this(source, child, order, limit, offset, estimatedRowSize, Set.of(), InputOrdering.NOT_SORTED);
     }
 
     private TopNExec(
@@ -64,17 +70,7 @@ public class TopNExec extends UnaryExec implements EstimatesRowSize {
         PhysicalPlan child,
         List<Order> order,
         Expression limit,
-        Integer estimatedRowSize,
-        InputOrdering inputOrdering
-    ) {
-        this(source, child, order, limit, estimatedRowSize, Set.of(), inputOrdering);
-    }
-
-    private TopNExec(
-        Source source,
-        PhysicalPlan child,
-        List<Order> order,
-        Expression limit,
+        Expression offset,
         Integer estimatedRowSize,
         Set<Attribute> docValuesAttributes,
         InputOrdering inputOrdering
@@ -82,6 +78,7 @@ public class TopNExec extends UnaryExec implements EstimatesRowSize {
         super(source, child);
         this.order = order;
         this.limit = limit;
+        this.offset = offset;
         this.estimatedRowSize = estimatedRowSize;
         this.inputOrdering = inputOrdering;
         this.docValuesAttributes = docValuesAttributes;
@@ -93,7 +90,9 @@ public class TopNExec extends UnaryExec implements EstimatesRowSize {
             in.readNamedWriteable(PhysicalPlan.class),
             in.readCollectionAsList(org.elasticsearch.xpack.esql.expression.Order::new),
             in.readNamedWriteable(Expression.class),
+            null,
             in.readOptionalVInt(),
+            Set.of(),
             in.getTransportVersion().supports(ESQL_TOPN_AVOID_RESORTING) ? InputOrdering.valueOf(in.readString()) : InputOrdering.NOT_SORTED
         );
         // docValueAttributes are only used on the data node and never serialized.
@@ -119,28 +118,56 @@ public class TopNExec extends UnaryExec implements EstimatesRowSize {
 
     @Override
     protected NodeInfo<TopNExec> info() {
-        return NodeInfo.create(this, TopNExec::new, child(), order, limit, estimatedRowSize);
+        return NodeInfo.create(this, TopNExec::new, child(), order, limit, offset, estimatedRowSize);
     }
 
     @Override
     public TopNExec replaceChild(PhysicalPlan newChild) {
-        return new TopNExec(source(), newChild, order, limit, estimatedRowSize, docValuesAttributes, inputOrdering);
+        return new TopNExec(source(), newChild, order, limit, offset, estimatedRowSize, docValuesAttributes, inputOrdering);
     }
 
     public TopNExec withDocValuesAttributes(Set<Attribute> docValuesAttributes) {
-        return new TopNExec(source(), child(), order, limit, estimatedRowSize, docValuesAttributes, inputOrdering);
+        return new TopNExec(source(), child(), order, limit, offset, estimatedRowSize, docValuesAttributes, inputOrdering);
     }
 
     public TopNExec withSortedInput() {
-        return new TopNExec(source(), child(), order, limit, estimatedRowSize, docValuesAttributes, InputOrdering.SORTED);
+        return new TopNExec(source(), child(), order, limit, offset, estimatedRowSize, docValuesAttributes, InputOrdering.SORTED);
     }
 
     public TopNExec withNonSortedInput() {
-        return new TopNExec(source(), child(), order, limit, estimatedRowSize, docValuesAttributes, InputOrdering.NOT_SORTED);
+        return new TopNExec(source(), child(), order, limit, offset, estimatedRowSize, docValuesAttributes, InputOrdering.NOT_SORTED);
+    }
+
+    public TopNExec withFoldedOffset() {
+        Literal newLimit = new Literal(source(), limitValue() + offsetValue(), DataType.INTEGER);
+        return new TopNExec(source(), child(), order, newLimit, null, estimatedRowSize, docValuesAttributes, inputOrdering);
     }
 
     public Expression limit() {
         return limit;
+    }
+
+    public Expression offset() {
+        return offset;
+    }
+
+    public int limitValue() {
+        if (limit instanceof Literal literal) {
+            Object val = literal.value() instanceof BytesRef br ? BytesRefs.toString(br) : literal.value();
+            return stringToInt(val.toString());
+        }
+        throw new IllegalArgumentException("TopNExec limit must be a literal");
+    }
+
+    public int offsetValue() {
+        if (offset == null) {
+            return 0;
+        }
+        if (offset instanceof Literal literal) {
+            Object val = literal.value() instanceof BytesRef br ? BytesRefs.toString(br) : literal.value();
+            return stringToInt(val.toString());
+        }
+        throw new IllegalArgumentException("TopNExec offset must be a literal");
     }
 
     public List<Order> order() {
@@ -168,7 +195,7 @@ public class TopNExec extends UnaryExec implements EstimatesRowSize {
         size = Math.max(size, 1);
         return Objects.equals(this.estimatedRowSize, size)
             ? this
-            : new TopNExec(source(), child(), order, limit, size, docValuesAttributes, inputOrdering);
+            : new TopNExec(source(), child(), order, limit, offset, size, docValuesAttributes, inputOrdering);
     }
 
     @Override

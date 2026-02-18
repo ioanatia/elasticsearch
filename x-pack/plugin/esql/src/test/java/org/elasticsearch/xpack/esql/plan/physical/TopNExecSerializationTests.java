@@ -25,7 +25,7 @@ public class TopNExecSerializationTests extends AbstractPhysicalPlanSerializatio
         List<Order> order = randomList(1, 10, OrderSerializationTests::randomOrder);
         Expression limit = new Literal(randomSource(), randomNonNegativeInt(), DataType.INTEGER);
         Integer estimatedRowSize = randomEstimatedRowSize();
-        return new TopNExec(source, child, order, limit, estimatedRowSize);
+        return new TopNExec(source, child, order, limit, null, estimatedRowSize);
     }
 
     @Override
@@ -52,7 +52,7 @@ public class TopNExecSerializationTests extends AbstractPhysicalPlanSerializatio
             case 4 -> inputOrdering = (inputOrdering == InputOrdering.SORTED ? InputOrdering.NOT_SORTED : InputOrdering.SORTED);
             default -> throw new UnsupportedOperationException();
         }
-        var result = new TopNExec(instance.source(), child, order, limit, estimatedRowSize);
+        var result = new TopNExec(instance.source(), child, order, limit, null, estimatedRowSize);
         return inputOrdering == InputOrdering.SORTED ? result.withSortedInput() : result.withNonSortedInput();
     }
 

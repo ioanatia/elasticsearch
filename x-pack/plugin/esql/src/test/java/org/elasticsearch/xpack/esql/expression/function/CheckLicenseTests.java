@@ -154,7 +154,7 @@ public class CheckLicenseTests extends ESTestCase {
         private final LicensedFeature licensedFeature;
 
         public LicensedLimit(Source source, Expression limit, LogicalPlan child, LicensedFeature licensedFeature) {
-            super(source, limit, child);
+            super(source, limit, null, child);
             this.licensedFeature = licensedFeature;
         }
 

@@ -32,11 +32,13 @@ public class LimitExec extends UnaryExec implements EstimatesRowSize {
     private static final TransportVersion ESQL_LIMIT_ROW_SIZE = TransportVersion.fromName("esql_limit_row_size");
 
     private final Expression limit;
+    private final Expression offset;
     private final Integer estimatedRowSize;
 
-    public LimitExec(Source source, PhysicalPlan child, Expression limit, Integer estimatedRowSize) {
+    public LimitExec(Source source, PhysicalPlan child, Expression limit, Expression offset, Integer estimatedRowSize) {
         super(source, child);
         this.limit = limit;
+        this.offset = offset;
         this.estimatedRowSize = estimatedRowSize;
     }
 
@@ -45,6 +47,7 @@ public class LimitExec extends UnaryExec implements EstimatesRowSize {
             Source.readFrom((PlanStreamInput) in),
             in.readNamedWriteable(PhysicalPlan.class),
             in.readNamedWriteable(Expression.class),
+            null,
             in.getTransportVersion().supports(ESQL_LIMIT_ROW_SIZE) ? in.readOptionalVInt() : null
         );
     }
@@ -66,16 +69,20 @@ public class LimitExec extends UnaryExec implements EstimatesRowSize {
 
     @Override
     protected NodeInfo<? extends LimitExec> info() {
-        return NodeInfo.create(this, LimitExec::new, child(), limit, estimatedRowSize);
+        return NodeInfo.create(this, LimitExec::new, child(), limit, offset, estimatedRowSize);
     }
 
     @Override
     public LimitExec replaceChild(PhysicalPlan newChild) {
-        return new LimitExec(source(), newChild, limit, estimatedRowSize);
+        return new LimitExec(source(), newChild, limit, offset, estimatedRowSize);
     }
 
     public Expression limit() {
         return limit;
+    }
+
+    public Expression offset() {
+        return offset;
     }
 
     public Integer estimatedRowSize() {
@@ -90,7 +97,7 @@ public class LimitExec extends UnaryExec implements EstimatesRowSize {
         state.add(needsSortedDocIds, output);
         int size = state.consumeAllFields(true);
         size = Math.max(size, 1);
-        return Objects.equals(this.estimatedRowSize, size) ? this : new LimitExec(source(), child(), limit, size);
+        return Objects.equals(this.estimatedRowSize, size) ? this : new LimitExec(source(), child(), limit, offset, size);
     }
 
     @Override
@@ -111,7 +118,8 @@ public class LimitExec extends UnaryExec implements EstimatesRowSize {
         LimitExec other = (LimitExec) obj;
         return Objects.equals(limit, other.limit)
             && Objects.equals(estimatedRowSize, other.estimatedRowSize)
-            && Objects.equals(child(), other.child());
+            && Objects.equals(child(), other.child())
+            && Objects.equals(offset, other.offset);
 
     }
 }

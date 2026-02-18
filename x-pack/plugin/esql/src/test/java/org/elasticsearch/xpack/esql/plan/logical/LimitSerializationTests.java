@@ -20,7 +20,7 @@ public class LimitSerializationTests extends AbstractLogicalPlanSerializationTes
         Source source = randomSource();
         Expression limit = FieldAttributeTests.createFieldAttribute(0, false);
         LogicalPlan child = randomChild(0);
-        return new Limit(source, limit, child, randomBoolean(), randomBoolean());
+        return new Limit(source, limit, null, child, randomBoolean(), randomBoolean());
     }
 
     @Override
@@ -36,7 +36,7 @@ public class LimitSerializationTests extends AbstractLogicalPlanSerializationTes
             case 3 -> local = local == false;
             default -> throw new IllegalStateException("Should never reach here");
         }
-        return new Limit(instance.source(), limit, child, duplicated, local);
+        return new Limit(instance.source(), limit, null, child, duplicated, local);
     }
 
     @Override

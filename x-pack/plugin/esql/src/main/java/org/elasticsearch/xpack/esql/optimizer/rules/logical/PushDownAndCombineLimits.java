@@ -132,7 +132,7 @@ public final class PushDownAndCombineLimits extends OptimizerRules.Parameterized
         var limitValue = (int) limit.limit().fold(ctx.foldCtx());
 
         // We push down a limit to a Fork branch when the Fork branch contains a limit with a higher value
-        return descendantLimitValue > limitValue ? new Limit(forkBranch.source(), limit.limit(), forkBranch) : forkBranch;
+        return descendantLimitValue > limitValue ? new Limit(forkBranch.source(), limit.limit(), null, forkBranch) : forkBranch;
     }
 
     private static Limit combineLimits(Limit upper, Limit lower, FoldContext ctx) {
@@ -154,7 +154,7 @@ public final class PushDownAndCombineLimits extends OptimizerRules.Parameterized
             // If any of them is local, we want the local limit
             return lower.local() ? lower : lower.withLocal(upper.local());
         } else {
-            return new Limit(upper.source(), upper.limit(), lower.child(), upper.duplicated(), upper.local());
+            return new Limit(upper.source(), upper.limit(), upper.offset(), lower.child(), upper.duplicated(), upper.local());
         }
     }
 

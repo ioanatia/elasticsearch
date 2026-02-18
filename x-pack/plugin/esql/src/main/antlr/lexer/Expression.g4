@@ -102,6 +102,7 @@ LIKE: 'like';
 NOT : 'not';
 NULL : 'null';
 NULLS : 'nulls';
+OFFSET : 'offset';
 ON: 'on';
 OR : 'or';
 PARAM: '?';

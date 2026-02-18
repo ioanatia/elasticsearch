@@ -91,7 +91,7 @@ public class LogicalPlanPreOptimizerTests extends ESTestCase {
         for (int i = 0; i < numCommands; i++) {
             plan = switch (randomInt(3)) {
                 case 0 -> new Eval(Source.EMPTY, plan, List.of(new Alias(Source.EMPTY, randomIdentifier(), randomExpression())));
-                case 1 -> new Limit(Source.EMPTY, of(randomInt()), plan);
+                case 1 -> new Limit(Source.EMPTY, of(randomInt()), null, plan);
                 case 2 -> new Filter(Source.EMPTY, plan, randomCondition());
                 default -> new Project(Source.EMPTY, plan, List.of(new Alias(Source.EMPTY, randomIdentifier(), fieldAttribute())));
             };

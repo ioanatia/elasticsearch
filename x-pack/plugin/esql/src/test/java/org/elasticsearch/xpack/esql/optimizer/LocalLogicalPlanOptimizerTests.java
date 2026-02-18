@@ -1008,7 +1008,7 @@ public class LocalLogicalPlanOptimizerTests extends AbstractLocalLogicalPlanOpti
                     if (appliedCount.get() == 0) {
                         appliedCount.set(appliedCount.get() + 1);
                         Limit limit = as(plan, Limit.class);
-                        Limit newLimit = new Limit(plan.source(), limit.limit(), limit.child()) {
+                        Limit newLimit = new Limit(plan.source(), limit.limit(), null, limit.child()) {
                             @Override
                             public List<Attribute> output() {
                                 List<Attribute> oldOutput = super.output();
@@ -2422,7 +2422,7 @@ public class LocalLogicalPlanOptimizerTests extends AbstractLocalLogicalPlanOpti
         // (different value so constant folding doesn't eliminate the filter)
         var filter = new Filter(
             EMPTY,
-            new Limit(EMPTY, L(1000), relation),
+            new Limit(EMPTY, L(1000), null, relation),
             new org.elasticsearch.xpack.esql.expression.predicate.operator.comparison.Equals(EMPTY, projectTagAttr, L("bar"))
         );
 
@@ -2470,7 +2470,7 @@ public class LocalLogicalPlanOptimizerTests extends AbstractLocalLogicalPlanOpti
         // Create a filter that uses the project metadata attribute
         var filter = new Filter(
             EMPTY,
-            new Limit(EMPTY, L(1000), relation),
+            new Limit(EMPTY, L(1000), null, relation),
             new org.elasticsearch.xpack.esql.expression.predicate.operator.comparison.Equals(EMPTY, projectTagAttr, L("bar"))
         );
 
@@ -2516,7 +2516,7 @@ public class LocalLogicalPlanOptimizerTests extends AbstractLocalLogicalPlanOpti
         );
 
         // Create an eval that uses the project metadata attribute: EVAL project_alias = _project._alias
-        var eval = new Eval(EMPTY, new Limit(EMPTY, L(1000), relation), List.of(new Alias(EMPTY, "project_alias", projectTagAttr)));
+        var eval = new Eval(EMPTY, new Limit(EMPTY, L(1000), null, relation), List.of(new Alias(EMPTY, "project_alias", projectTagAttr)));
 
         // Create SearchStats that returns a constant value for _project._alias
         var searchStats = new EsqlTestUtils.TestSearchStats() {
@@ -2561,7 +2561,7 @@ public class LocalLogicalPlanOptimizerTests extends AbstractLocalLogicalPlanOpti
         // Create a filter that uses the _index metadata attribute
         var filter = new Filter(
             EMPTY,
-            new Limit(EMPTY, L(1000), relation),
+            new Limit(EMPTY, L(1000), null, relation),
             new org.elasticsearch.xpack.esql.expression.predicate.operator.comparison.Equals(EMPTY, indexAttr, L("test"))
         );
 
