@@ -51,6 +51,7 @@ import org.elasticsearch.xpack.esql.optimizer.rules.logical.PushDownEnrich;
 import org.elasticsearch.xpack.esql.optimizer.rules.logical.PushDownEval;
 import org.elasticsearch.xpack.esql.optimizer.rules.logical.PushDownFilterAndLimitIntoUnionAll;
 import org.elasticsearch.xpack.esql.optimizer.rules.logical.PushDownInferencePlan;
+import org.elasticsearch.xpack.esql.optimizer.rules.logical.PushDownIntoFork;
 import org.elasticsearch.xpack.esql.optimizer.rules.logical.PushDownJoinPastProject;
 import org.elasticsearch.xpack.esql.optimizer.rules.logical.PushDownLimitAndOrderByIntoFork;
 import org.elasticsearch.xpack.esql.optimizer.rules.logical.PushDownRegexExtract;
@@ -234,6 +235,7 @@ public class LogicalPlanOptimizer extends ParameterizedRuleExecutor<LogicalPlan,
             new PushDownAndCombineOrderBy(),
             new PushDownFilterAndLimitIntoUnionAll(),
             new PushDownLimitAndOrderByIntoFork(),
+            new PushDownIntoFork(),
             new PruneRedundantOrderBy(),
             new PruneRedundantSortClauses(),
             new PruneLeftJoinOnNullMatchingField(),
