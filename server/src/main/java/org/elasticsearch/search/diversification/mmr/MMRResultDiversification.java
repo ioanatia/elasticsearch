@@ -47,17 +47,18 @@ public class MMRResultDiversification extends ResultDiversification<MMRResultDiv
 
         // cache the similarity scores for the query vector vs. searchHits
         float[] querySimilarities = getQuerySimilarityForDocs(docs);
-        // always add the highest relevant doc to the list
-        int prevSelectedDocRank = 1 + IntStream.range(0, querySimilarities.length)
-            .reduce(0, (a, b) -> querySimilarities[a] >= querySimilarities[b] ? a : b);
+        // get the first selected doc rank, if any, so we can start from there
+        int prevSelectedDocRank = getFirstSelectedDocRank(docs, querySimilarities);
 
-        selectedDocRanks.add(prevSelectedDocRank);
+        if (prevSelectedDocRank > 0) {
+            selectedDocRanks.add(prevSelectedDocRank);
+        }
         int topDocsSize = context.getSize();
 
         float[] maxSimilarityToSelected = new float[docs.length];
         Arrays.fill(maxSimilarityToSelected, Float.NEGATIVE_INFINITY);
 
-        for (int x = 0; x < topDocsSize && selectedDocRanks.size() < topDocsSize && selectedDocRanks.size() < docs.length; x++) {
+        for (int x = 0; prevSelectedDocRank > 0 && x < topDocsSize && selectedDocRanks.size() < topDocsSize && selectedDocRanks.size() < docs.length; x++) {
             int thisMaxMMRDocRank = -1;
             float thisMaxMMRScore = Float.NEGATIVE_INFINITY;
             for (RankDoc doc : docs) {
@@ -101,6 +102,23 @@ public class MMRResultDiversification extends ResultDiversification<MMRResultDiv
         for (Integer docRank : selectedDocRanks) {
             returnDocIndices.add(docIdIndexMapping.get(docRank));
         }
+
+        // pad with results missing vector data until we get to `topDocsSize`
+        int current = 0;
+        for (int i = selectedDocRanks.size(); i < topDocsSize; i++) {
+            for (int j = current; j < docs.length; j++) {
+                if (selectedDocRanks.contains(docs[j].rank)) {
+                    continue;
+                }
+                var docVector = context.getFieldVector(docs[j].rank);
+                if (docVector == null || docVector.size() == 0) {
+                    returnDocIndices.add(docs[j].rank);
+                    current = j;
+                    break;
+                }
+            }
+        }
+
         returnDocIndices.sort(Integer::compareTo);
 
         RankDoc[] ret = new RankDoc[returnDocIndices.size()];
@@ -109,6 +127,32 @@ public class MMRResultDiversification extends ResultDiversification<MMRResultDiv
         }
 
         return ret;
+    }
+
+    private int getFirstSelectedDocRank(RankDoc[] docs, float[] querySimilarities) {
+        int firstDocRank = 1;
+
+        // always start by taking the highest relevant doc to the list
+        if (context.getQueryVector() != null) {
+            firstDocRank = 1 + IntStream.range(0, querySimilarities.length)
+                .reduce(0, (a, b) -> querySimilarities[a] >= querySimilarities[b] ? a : b);
+        }
+
+        var docVector = context.getFieldVector(firstDocRank);
+
+        if (docVector == null || docVector.size() == 0) {
+            firstDocRank = -1;
+            // find the first non-null vector
+            for (RankDoc doc : docs) {
+                var vector = context.getFieldVector(doc.rank);
+                if (vector != null && vector.size() > 0) {
+                    firstDocRank = doc.rank;
+                    break;
+                }
+            }
+        }
+
+        return firstDocRank;
     }
 
     protected float[] getQuerySimilarityForDocs(RankDoc[] docs) {
