@@ -130,6 +130,7 @@ import org.elasticsearch.xpack.esql.expression.Order;
 import org.elasticsearch.xpack.esql.inference.InferenceService;
 import org.elasticsearch.xpack.esql.inference.completion.CompletionOperator;
 import org.elasticsearch.xpack.esql.inference.rerank.RerankOperator;
+import org.elasticsearch.xpack.esql.inference.textembedding.TextEmbeddingOperator;
 import org.elasticsearch.xpack.esql.plan.logical.EsRelation;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.esql.plan.physical.AggregateExec;
@@ -171,6 +172,7 @@ import org.elasticsearch.xpack.esql.plan.physical.TsInfoExec;
 import org.elasticsearch.xpack.esql.plan.physical.UriPartsExec;
 import org.elasticsearch.xpack.esql.plan.physical.UserAgentExec;
 import org.elasticsearch.xpack.esql.plan.physical.inference.CompletionExec;
+import org.elasticsearch.xpack.esql.plan.physical.inference.GenerateEmbeddingsExec;
 import org.elasticsearch.xpack.esql.plan.physical.inference.RerankExec;
 import org.elasticsearch.xpack.esql.planner.EsPhysicalOperationProviders.ShardContext;
 import org.elasticsearch.xpack.esql.plugin.QueryPragmas;
@@ -353,6 +355,8 @@ public class LocalExecutionPlanner {
             return planTsInfo(tsInfo, context);
         } else if (node instanceof SparklineGenerateEmptyBucketsExec sparkline) {
             return planSparklineGenerateEmptyBuckets(sparkline, context);
+        } else if (node instanceof GenerateEmbeddingsExec embeddings) {
+            return planGenerateEmbeddings(embeddings, context);
         }
 
         // source nodes
@@ -471,6 +475,20 @@ public class LocalExecutionPlanner {
             new CompletionOperator.Factory(inferenceService, inferenceId, promptEvaluatorFactory, taskSettings),
             outputLayout
         );
+    }
+
+    private PhysicalOperation planGenerateEmbeddings(GenerateEmbeddingsExec generateEmbeddings, LocalExecutionPlannerContext context) {
+        PhysicalOperation source = plan(generateEmbeddings.child(), context);
+        String inferenceId = BytesRefs.toString(generateEmbeddings.inferenceId().fold(context.foldCtx()));
+
+        Layout outputLayout = source.layout.builder().append(generateEmbeddings.targetField()).build();
+        ExpressionEvaluator.Factory inputEvaluatorFactory = EvalMapper.toEvaluator(
+            context.foldCtx(),
+            generateEmbeddings.input(),
+            source.layout
+        );
+
+        return source.with(new TextEmbeddingOperator.Factory(inferenceService, inferenceId, inputEvaluatorFactory), outputLayout);
     }
 
     private PhysicalOperation planFuseScoreEvalExec(FuseScoreEvalExec fuse, LocalExecutionPlannerContext context) {

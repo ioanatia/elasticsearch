@@ -22,6 +22,7 @@ import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.core.type.DataType;
 import org.elasticsearch.xpack.esql.expression.Foldables;
 import org.elasticsearch.xpack.esql.expression.function.Options;
+import org.elasticsearch.xpack.esql.optimizer.rules.physical.local.LucenePushdownPredicates;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.esql.type.EsqlDataTypeConverter;
 
@@ -176,7 +177,7 @@ public abstract class SingleFieldFullTextFunction extends FullTextFunction
     public BiConsumer<LogicalPlan, Failures> postAnalysisPlanVerification() {
         return (plan, failures) -> {
             super.postAnalysisPlanVerification().accept(plan, failures);
-            fieldVerifier(plan, this, field, failures);
+            // fieldVerifier(plan, this, field, failures);
         };
     }
 
@@ -185,7 +186,7 @@ public abstract class SingleFieldFullTextFunction extends FullTextFunction
         // check plan again after predicates are pushed down into subqueries
         return (plan, failures) -> {
             super.postOptimizationPlanVerification().accept(plan, failures);
-            fieldVerifier(plan, this, field, failures);
+            // fieldVerifier(plan, this, field, failures);
         };
     }
 
@@ -203,6 +204,14 @@ public abstract class SingleFieldFullTextFunction extends FullTextFunction
     @Override
     public int hashCode() {
         return Objects.hash(field(), query(), System.identityHashCode(queryBuilder()));
+    }
+
+    @Override
+    public Translatable translatable(LucenePushdownPredicates pushdownPredicates) {
+        if (fieldAsFieldAttribute() == null) {
+            return Translatable.NO;
+        }
+        return super.translatable(pushdownPredicates);
     }
 
     /**

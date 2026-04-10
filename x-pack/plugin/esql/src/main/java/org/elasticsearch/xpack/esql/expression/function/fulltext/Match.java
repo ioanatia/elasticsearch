@@ -11,6 +11,8 @@ import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.Fuzziness;
+import org.elasticsearch.compute.expression.ExpressionEvaluator;
+import org.elasticsearch.compute.lucene.query.LuceneInMemoryQueryExpressionEvaluator;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.xpack.esql.core.InvalidArgumentException;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
@@ -19,7 +21,6 @@ import org.elasticsearch.xpack.esql.core.querydsl.query.Query;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
 import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.core.type.DataType;
-import org.elasticsearch.xpack.esql.core.util.Check;
 import org.elasticsearch.xpack.esql.expression.function.Example;
 import org.elasticsearch.xpack.esql.expression.function.FunctionAppliesTo;
 import org.elasticsearch.xpack.esql.expression.function.FunctionAppliesToLifecycle;
@@ -357,9 +358,20 @@ public class Match extends SingleFieldFullTextFunction implements OptionalArgume
     @Override
     protected Query translate(LucenePushdownPredicates pushdownPredicates, TranslatorHandler handler) {
         var fieldAttribute = fieldAsFieldAttribute();
-        Check.notNull(fieldAttribute, "Match must have a field attribute as the first argument");
-        String fieldName = getNameFromFieldAttribute(fieldAttribute);
+        String fieldName = fieldAttribute != null ? getNameFromFieldAttribute(fieldAttribute) : "internal_field";
+        // Check.notNull(fieldAttribute, "Match must have a field attribute as the first argument");
         // Make query lenient so mixed field types can be queried when a field type is incompatible with the value provided
         return new MatchQuery(source(), fieldName, queryAsObject(), matchQueryOptions());
     }
+
+    @Override
+    public ExpressionEvaluator.Factory toEvaluator(ToEvaluator toEvaluator) {
+        var fieldAttribute = fieldAsFieldAttribute();
+        if (fieldAttribute != null) {
+            return super.toEvaluator(toEvaluator);
+        }
+
+        return new LuceneInMemoryQueryExpressionEvaluator.Factory(toEvaluator.apply(field), queryAsObject().toString());
+    }
+
 }

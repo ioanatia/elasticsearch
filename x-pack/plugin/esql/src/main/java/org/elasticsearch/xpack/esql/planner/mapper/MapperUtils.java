@@ -34,6 +34,7 @@ import org.elasticsearch.xpack.esql.plan.logical.UriParts;
 import org.elasticsearch.xpack.esql.plan.logical.UserAgent;
 import org.elasticsearch.xpack.esql.plan.logical.fuse.FuseScoreEval;
 import org.elasticsearch.xpack.esql.plan.logical.inference.Completion;
+import org.elasticsearch.xpack.esql.plan.logical.inference.GenerateEmbeddings;
 import org.elasticsearch.xpack.esql.plan.logical.inference.Rerank;
 import org.elasticsearch.xpack.esql.plan.logical.local.LocalRelation;
 import org.elasticsearch.xpack.esql.plan.logical.show.ShowInfo;
@@ -59,6 +60,7 @@ import org.elasticsearch.xpack.esql.plan.physical.TimeSeriesAggregateExec;
 import org.elasticsearch.xpack.esql.plan.physical.UriPartsExec;
 import org.elasticsearch.xpack.esql.plan.physical.UserAgentExec;
 import org.elasticsearch.xpack.esql.plan.physical.inference.CompletionExec;
+import org.elasticsearch.xpack.esql.plan.physical.inference.GenerateEmbeddingsExec;
 import org.elasticsearch.xpack.esql.plan.physical.inference.RerankExec;
 import org.elasticsearch.xpack.esql.planner.AbstractPhysicalOperationProviders;
 
@@ -123,6 +125,16 @@ public class MapperUtils {
                 completion.prompt(),
                 completion.targetField(),
                 completion.taskSettings()
+            );
+        }
+
+        if (p instanceof GenerateEmbeddings generateEmbeddings) {
+            return new GenerateEmbeddingsExec(
+                generateEmbeddings.source(),
+                child,
+                generateEmbeddings.inferenceId(),
+                generateEmbeddings.input(),
+                generateEmbeddings.targetField()
             );
         }
 

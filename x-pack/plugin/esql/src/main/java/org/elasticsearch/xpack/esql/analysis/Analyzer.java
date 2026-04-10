@@ -89,6 +89,7 @@ import org.elasticsearch.xpack.esql.expression.function.aggregate.Values;
 import org.elasticsearch.xpack.esql.expression.function.grouping.GroupingFunction;
 import org.elasticsearch.xpack.esql.expression.function.inference.CompletionFunction;
 import org.elasticsearch.xpack.esql.expression.function.inference.InferenceFunction;
+import org.elasticsearch.xpack.esql.expression.function.inference.TextEmbedding;
 import org.elasticsearch.xpack.esql.expression.function.scalar.EsqlScalarFunction;
 import org.elasticsearch.xpack.esql.expression.function.scalar.UnaryScalarFunction;
 import org.elasticsearch.xpack.esql.expression.function.scalar.conditional.Case;
@@ -142,12 +143,14 @@ import org.elasticsearch.xpack.esql.plan.logical.Project;
 import org.elasticsearch.xpack.esql.plan.logical.Rename;
 import org.elasticsearch.xpack.esql.plan.logical.Row;
 import org.elasticsearch.xpack.esql.plan.logical.TimeSeriesAggregate;
+import org.elasticsearch.xpack.esql.plan.logical.UnaryPlan;
 import org.elasticsearch.xpack.esql.plan.logical.UnionAll;
 import org.elasticsearch.xpack.esql.plan.logical.UnresolvedExternalRelation;
 import org.elasticsearch.xpack.esql.plan.logical.UnresolvedRelation;
 import org.elasticsearch.xpack.esql.plan.logical.fuse.Fuse;
 import org.elasticsearch.xpack.esql.plan.logical.fuse.FuseScoreEval;
 import org.elasticsearch.xpack.esql.plan.logical.inference.Completion;
+import org.elasticsearch.xpack.esql.plan.logical.inference.GenerateEmbeddings;
 import org.elasticsearch.xpack.esql.plan.logical.inference.InferencePlan;
 import org.elasticsearch.xpack.esql.plan.logical.inference.Rerank;
 import org.elasticsearch.xpack.esql.plan.logical.join.Join;
@@ -648,6 +651,7 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
             var resolved = switch (plan) {
                 case Aggregate a -> resolveAggregate(a, childrenOutput);
                 case Completion c -> resolveCompletion(c, childrenOutput);
+                case GenerateEmbeddings gE -> resolveGenerateEmbeddings(gE, childrenOutput);
                 case Drop d -> resolveDrop(d, context.unmappedResolution());
                 case Rename r -> resolveRename(r, context.unmappedResolution());
                 case Keep k -> resolveKeep(k, context.unmappedResolution());
@@ -786,6 +790,22 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
             }
 
             return new Completion(p.source(), p.child(), p.inferenceId(), p.rowLimit(), prompt, targetField, p.taskSettings());
+        }
+
+        private LogicalPlan resolveGenerateEmbeddings(GenerateEmbeddings p, List<Attribute> childrenOutput) {
+            Attribute targetField = p.targetField();
+            Expression input = p.input();
+
+            if (targetField instanceof UnresolvedAttribute ua) {
+                targetField = new ReferenceAttribute(ua.source(), null, ua.name(), KEYWORD);
+            }
+
+            if (input.resolved() == false) {
+                input = input.transformUp(UnresolvedAttribute.class, ua -> maybeResolveAttribute(ua, childrenOutput));
+            }
+
+            return new GenerateEmbeddings(p.source(), p.child(), p.inferenceId(), p.rowLimit(), input, targetField);
+
         }
 
         private LogicalPlan resolveMvExpand(MvExpand p, List<Attribute> childrenOutput) {
@@ -1873,7 +1893,46 @@ public class Analyzer extends ParameterizedRuleExecutor<LogicalPlan, AnalyzerCon
         @Override
         public LogicalPlan apply(LogicalPlan plan, AnalyzerContext context) {
             return plan.transformExpressionsOnly(InferenceFunction.class, f -> resolveInferenceFunction(f, context))
-                .transformDown(InferencePlan.class, p -> resolveInferencePlan(p, context));
+                .transformDown(InferencePlan.class, p -> resolveInferencePlan(p, context))
+                .transformDown(UnaryPlan.class, unaryPlan -> resolveTextEmbedding(unaryPlan, context));
+        }
+
+        private LogicalPlan resolveTextEmbedding(UnaryPlan plan, AnalyzerContext content) {
+            Holder<TextEmbedding> holder = new Holder<>();
+
+            plan.forEachExpression(TextEmbedding.class, textEmbedding -> {
+                // we should support multiple here btw :-(
+                if (textEmbedding.foldable() == false) {
+                    holder.set(textEmbedding);
+                }
+            });
+
+            if (holder.get() == null) {
+                return plan;
+            }
+
+            TextEmbedding textEmbedding = holder.get();
+            if (textEmbedding.foldable()) {
+                return plan;
+            }
+
+            Attribute targetAttribute = new ReferenceAttribute(textEmbedding.source(), null, "temp_name_for_text_embedding", DENSE_VECTOR);
+            GenerateEmbeddings generateEmbeddings = new GenerateEmbeddings(
+                textEmbedding.source(),
+                plan.child(),
+                textEmbedding.inferenceId(),
+                Literal.integer(textEmbedding.source(), 100),
+                textEmbedding.inputText(),
+                targetAttribute
+            );
+            plan = (UnaryPlan) plan.transformExpressionsOnly(TextEmbedding.class, te -> targetAttribute);
+
+            var newPlan = plan.replaceChild(generateEmbeddings);
+            return new Drop(
+                textEmbedding.source(),
+                newPlan,
+                List.of(new UnresolvedAttribute(textEmbedding.source(), "temp_name_for_text_embedding"))
+            );
         }
 
         private LogicalPlan resolveInferencePlan(InferencePlan<?> plan, AnalyzerContext context) {

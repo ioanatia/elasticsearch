@@ -45,6 +45,7 @@ import org.elasticsearch.xpack.esql.plan.logical.UserAgent;
 import org.elasticsearch.xpack.esql.plan.logical.fuse.Fuse;
 import org.elasticsearch.xpack.esql.plan.logical.fuse.FuseScoreEval;
 import org.elasticsearch.xpack.esql.plan.logical.inference.Completion;
+import org.elasticsearch.xpack.esql.plan.logical.inference.GenerateEmbeddings;
 import org.elasticsearch.xpack.esql.plan.logical.inference.Rerank;
 import org.elasticsearch.xpack.esql.plan.logical.join.LookupJoin;
 import org.elasticsearch.xpack.esql.plan.logical.local.LocalRelation;
@@ -103,6 +104,7 @@ public enum FeatureMetric {
     FORK(Fork.class::isInstance),
     FUSE(Fuse.class::isInstance),
     COMPLETION(Completion.class::isInstance),
+    GENERATE_EMBEDDINGS(GenerateEmbeddings.class::isInstance),
     SAMPLE(Sample.class::isInstance),
     SUBQUERY(Subquery.class::isInstance),
     VIEW(plan -> false), // Views are counted in EsqlSession.gatherViewMetrics, not via plan traversal
