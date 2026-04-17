@@ -13,7 +13,10 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.compute.expression.ExpressionEvaluator;
 import org.elasticsearch.compute.lucene.query.LuceneInMemoryQueryExpressionEvaluator;
+import org.elasticsearch.compute.lucene.query.LuceneInMemoryQueryScoreEvaluator;
+import org.elasticsearch.compute.operator.ScoreOperator;
 import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.xpack.esql.common.Failures;
 import org.elasticsearch.xpack.esql.core.InvalidArgumentException;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.expression.MapExpression;
@@ -32,6 +35,7 @@ import org.elasticsearch.xpack.esql.expression.function.Options;
 import org.elasticsearch.xpack.esql.expression.function.Param;
 import org.elasticsearch.xpack.esql.io.stream.PlanStreamInput;
 import org.elasticsearch.xpack.esql.optimizer.rules.physical.local.LucenePushdownPredicates;
+import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.esql.planner.TranslatorHandler;
 import org.elasticsearch.xpack.esql.querydsl.query.MatchQuery;
 
@@ -40,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 import static java.util.Map.entry;
 import static org.elasticsearch.index.query.AbstractQueryBuilder.BOOST_FIELD;
@@ -366,6 +371,10 @@ public class Match extends SingleFieldFullTextFunction implements OptionalArgume
 
     @Override
     public ExpressionEvaluator.Factory toEvaluator(ToEvaluator toEvaluator) {
+        if (toEvaluator.shardContexts() == null) {
+            return new LuceneInMemoryQueryExpressionEvaluator.Factory(toEvaluator.apply(field), queryAsObject().toString());
+        }
+
         var fieldAttribute = fieldAsFieldAttribute();
         if (fieldAttribute != null) {
             return super.toEvaluator(toEvaluator);
@@ -374,4 +383,28 @@ public class Match extends SingleFieldFullTextFunction implements OptionalArgume
         return new LuceneInMemoryQueryExpressionEvaluator.Factory(toEvaluator.apply(field), queryAsObject().toString());
     }
 
+    @Override
+    public ScoreOperator.ExpressionScorer.Factory toScorer(ToScorer toScorer) {
+        if (toScorer.shardContexts() == null) {
+            return new LuceneInMemoryQueryScoreEvaluator.Factory(queryAsObject().toString());
+        }
+
+        var fieldAttribute = fieldAsFieldAttribute();
+        if (fieldAttribute != null) {
+            return super.toScorer(toScorer);
+        }
+
+        return new LuceneInMemoryQueryScoreEvaluator.Factory(queryAsObject().toString());
+    }
+
+    // skip verification for match
+    @Override
+    public BiConsumer<LogicalPlan, Failures> postAnalysisPlanVerification() {
+        return ((logicalPlan, failures) -> {});
+    }
+
+    @Override
+    public BiConsumer<LogicalPlan, Failures> postOptimizationPlanVerification() {
+        return ((logicalPlan, failures) -> {});
+    }
 }

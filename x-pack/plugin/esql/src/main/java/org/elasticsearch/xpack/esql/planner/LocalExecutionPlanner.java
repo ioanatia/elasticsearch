@@ -1509,7 +1509,8 @@ public class LocalExecutionPlanner {
             source.layout
         );
         // Add ScoreOperator only on data nodes. Data nodes are able to calculate scores running queries on the resulting docs.
-        if (context.shardContexts.isEmpty() == false && PlannerUtils.usesScoring(filter)) {
+        //if (context.shardContexts.isEmpty() == false && PlannerUtils.usesScoring(filter)) {
+        if (PlannerUtils.usesScoring(filter)) {
             // Add scorer operator to add the filter expression scores to the overall scores
             Attribute scoreAttribute = null;
 
